@@ -76,6 +76,22 @@ const projectSchema = z.object({
   name: z.string(),
   registryId: z.string().nullable(),
   countryCode: z.string().nullable(),
+  centroidLng: z.number().nullable().optional(),
+  centroidLat: z.number().nullable().optional(),
+  currentBoundary: z
+    .object({
+      id: z.string(),
+      version: z.number().int(),
+      geojson: jsonValueSchema,
+      source: z.string(),
+      sourceUrl: z.string().url().nullable(),
+      quality: z.string(),
+      verifiedAt: dateTime.nullable(),
+      areaHa: z.number().nullable(),
+      isCurrent: z.boolean(),
+    })
+    .nullable()
+    .optional(),
 });
 
 const assessmentSchema = z.object({

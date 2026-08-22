@@ -16,6 +16,24 @@ const incidentQuery = {
         name: true,
         registryId: true,
         countryCode: true,
+        centroidLng: true,
+        centroidLat: true,
+        boundaries: {
+          where: { isCurrent: true },
+          orderBy: [{ version: "desc" as const }, { createdAt: "desc" as const }],
+          take: 1,
+          select: {
+            id: true,
+            version: true,
+            geojson: true,
+            source: true,
+            sourceUrl: true,
+            quality: true,
+            verifiedAt: true,
+            areaHa: true,
+            isCurrent: true,
+          },
+        },
       },
     },
     event: {
@@ -130,7 +148,22 @@ export function mapIncidentToResponse(
     status: incident.status,
     createdAt: iso(incident.createdAt),
     updatedAt: iso(incident.updatedAt),
-    project: incident.project,
+    project: {
+      id: incident.project.id,
+      name: incident.project.name,
+      registryId: incident.project.registryId,
+      countryCode: incident.project.countryCode,
+      centroidLng: incident.project.centroidLng,
+      centroidLat: incident.project.centroidLat,
+      currentBoundary: incident.project.boundaries[0]
+        ? {
+            ...incident.project.boundaries[0],
+            verifiedAt: incident.project.boundaries[0].verifiedAt
+              ? iso(incident.project.boundaries[0].verifiedAt)
+              : null,
+          }
+        : null,
+    },
     event: {
       ...incident.event,
       observedAt: incident.event.observedAt

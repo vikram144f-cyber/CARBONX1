@@ -14,6 +14,7 @@ const sourceFiles = [
   "tests/epic-04.test.ts",
   "tests/epic-06.test.ts",
   "tests/epic-05.test.ts",
+  "tests/epic-08.test.ts",
   "lib/services/audit.ts",
   "lib/services/blockchain.ts",
   "lib/services/ai-service.ts",
@@ -25,6 +26,7 @@ const sourceFiles = [
   "lib/turf.d.ts",
   "lib/validations/incidents.ts",
   "lib/validations/ai.ts",
+  "lib/validations/audit.ts",
 ];
 
 try {
@@ -58,6 +60,7 @@ try {
     path.join(outputDirectory, "tests", "epic-04.test.js"),
     path.join(outputDirectory, "tests", "epic-06.test.js"),
     path.join(outputDirectory, "tests", "epic-05.test.js"),
+    path.join(outputDirectory, "tests", "epic-08.test.js"),
   ];
   for (const file of testFiles) {
     const test = spawnSync(

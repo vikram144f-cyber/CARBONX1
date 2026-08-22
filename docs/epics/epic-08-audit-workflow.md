@@ -24,12 +24,12 @@ Enable humans to make and record critical audit decisions regarding an incident,
 **So that** my organization can take action on the exposed credits.
 
 ### Acceptance Criteria
-- [ ] The Incident Investigation View includes a clear "Flag for Audit" action button.
-- [ ] Clicking the button calls a `POST` API route to update the incident.
-- [ ] The button shows a purposeful loading micro-interaction while processing.
+- [x] The Incident Investigation View includes a clear "Flag for Audit" action button.
+- [x] Clicking the button calls a `POST` API route to update the incident.
+- [x] The button shows a purposeful loading micro-interaction while processing.
 - [ ] On success, the UI reflects the new `AUDIT_RECOMMENDED` status.
 - [ ] A new entry appears in the incident timeline indicating the human action.
-- [ ] The backend triggers a blockchain anchor for the `"AUDIT_RECOMMENDED"` event type.
+- [x] The backend triggers a blockchain anchor for the `"AUDIT_RECOMMENDED"` event type.
 
 ### Technical notes
 - PRD 5.5, Architecture Spine AD-22
