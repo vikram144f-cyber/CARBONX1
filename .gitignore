@@ -1,0 +1,5 @@
+.agents/
+_bmad/
+node_modules/
+.env
+.env.local
