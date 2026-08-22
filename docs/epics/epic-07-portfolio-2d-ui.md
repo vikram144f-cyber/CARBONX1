@@ -25,10 +25,10 @@ Deliver the premium, functional 2D web interface allowing organizations to view 
 **So that** the tool feels like a credible environmental intelligence system.
 
 ### Acceptance Criteria
-- [ ] Implement a Next.js App Router layout with navigation.
-- [ ] Apply a dark/environmental base visual identity using Tailwind CSS (no generic SaaS look, no crypto aesthetics).
-- [ ] Define semantic color utility classes: Green (healthy), Amber (caution), Red (critical anomaly), and Blue/Neutral (information).
-- [ ] Component styles are consistent and avoid "meaningless cards" and excessive glassmorphism.
+- [x] Implement a Next.js App Router layout with navigation.
+- [x] Apply a dark/environmental base visual identity using Tailwind CSS (no generic SaaS look, no crypto aesthetics).
+- [x] Define semantic color utility classes: Green (healthy), Amber (caution), Red (critical anomaly), and Blue/Neutral (information).
+- [x] Component styles are consistent and avoid "meaningless cards" and excessive glassmorphism.
 
 ### Technical notes
 - PRD 7.0, Architecture Spine AD-2
@@ -45,10 +45,10 @@ Deliver the premium, functional 2D web interface allowing organizations to view 
 **So that** I can see if any of my projects have active environmental alerts.
 
 ### Acceptance Criteria
-- [ ] The dashboard consumes `GET /api/portfolio` (can be mocked initially using Zod schema).
-- [ ] Displays a summary of total credit holdings and active incidents.
-- [ ] Lists projects, visually distinguishing those with healthy status from those with anomalies (Amber/Red).
-- [ ] Provides clear navigation to project details and active incidents.
+- [x] The dashboard consumes `GET /api/portfolio` (can be mocked initially using Zod schema).
+- [x] Displays a summary of total credit holdings and active incidents.
+- [x] Lists projects, visually distinguishing those with healthy status from those with anomalies (Amber/Red).
+- [x] Provides clear navigation to project details and active incidents.
 
 ### Technical notes
 - PRD 5.5
@@ -65,7 +65,7 @@ Deliver the premium, functional 2D web interface allowing organizations to view 
 **So that** I can understand the risk before making an audit decision.
 
 ### Acceptance Criteria
-- [ ] The incident page consumes `GET /api/incidents/[id]`.
+- [x] The incident page consumes `GET /api/incidents/[id]`.
 - [ ] Visually separates `Physical Impact`, `Credit Exposure`, `Financial Exposure`, `Integrity Risk`, and `Evidence Confidence`.
 - [ ] Clearly labels buffered estimates as `ESTIMATED`.
 - [ ] Renders the AI Report narrative, handling the `null` (Interpretation Unavailable) fallback gracefully.

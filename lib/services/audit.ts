@@ -63,6 +63,10 @@ export type IncidentTransitionResult = {
   historyId: string;
 };
 
+export type AuditFlagResult = IncidentTransitionResult & {
+  idempotent: boolean;
+};
+
 export class AuditService {
   constructor(
     private readonly db: DatabaseClient = prisma,
@@ -136,6 +140,76 @@ export class AuditService {
       : await work(this.db);
 
     this.dispatchBlockchainAnchor(result);
+    return result;
+  }
+
+  async flagForAudit(
+    incidentId: string,
+    actor: string,
+  ): Promise<AuditFlagResult> {
+    const normalizedActor = actor.trim();
+    if (!normalizedActor || normalizedActor.toLowerCase().startsWith("system:")) {
+      throw new ServiceError(
+        "A human actor is required for an audit flag",
+        "INVALID_ACTOR",
+        400,
+      );
+    }
+
+    const work = async (tx: Prisma.TransactionClient): Promise<AuditFlagResult> => {
+      const incident = await tx.incident.findUnique({
+        where: { id: incidentId },
+        select: { id: true, status: true },
+      });
+      if (!incident) {
+        throw new ServiceError("Incident not found", "NOT_FOUND", 404);
+      }
+
+      if (incident.status === IncidentStatus.AUDIT_RECOMMENDED) {
+        const history = await tx.incidentStatusHistory.findFirst({
+          where: {
+            incidentId,
+            toStatus: IncidentStatus.AUDIT_RECOMMENDED,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { id: true, fromStatus: true, toStatus: true, actor: true, createdByType: true },
+        });
+        if (!history) {
+          throw new ServiceError(
+            "Audit recommendation history is missing",
+            "INCONSISTENT_STATE",
+            409,
+          );
+        }
+        return {
+          incidentId,
+          fromStatus: history.fromStatus ?? IncidentStatus.UNDER_ASSESSMENT,
+          toStatus: history.toStatus,
+          actor: history.actor,
+          createdByType: history.createdByType,
+          historyId: history.id,
+          idempotent: true,
+        };
+      }
+
+      const result = await this.transitionInTransaction(
+        tx,
+        incidentId,
+        IncidentStatus.AUDIT_RECOMMENDED,
+        normalizedActor,
+      );
+      return { ...result, idempotent: false };
+    };
+
+    const result = isPrismaClient(this.db)
+      ? await this.db.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 10_000,
+        timeout: 30_000,
+      })
+      : await work(this.db);
+
+    if (!result.idempotent) this.dispatchBlockchainAnchor(result);
     return result;
   }
 

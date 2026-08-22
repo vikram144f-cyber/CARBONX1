@@ -50,6 +50,21 @@ const incidentQuery = {
         createdAt: true,
       },
     },
+    anchors: {
+      orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+      select: {
+        id: true,
+        eventType: true,
+        status: true,
+        txHash: true,
+        network: true,
+        contractAddress: true,
+        confirmedAt: true,
+        failureReason: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    },
     assessments: {
       orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
       take: 1,
@@ -166,6 +181,18 @@ export function mapIncidentToResponse(
         }
       : null,
     evidence: incident.evidenceRecords.map(mapEvidence),
+    anchors: (incident.anchors ?? []).map((anchor) => ({
+      id: anchor.id,
+      eventType: anchor.eventType,
+      status: anchor.status,
+      txHash: anchor.txHash,
+      network: anchor.network,
+      contractAddress: anchor.contractAddress,
+      confirmedAt: anchor.confirmedAt ? iso(anchor.confirmedAt) : null,
+      failureReason: anchor.failureReason,
+      createdAt: iso(anchor.createdAt),
+      updatedAt: iso(anchor.updatedAt),
+    })),
     statusHistory: incident.statusHistory.map((history) => ({
       id: history.id,
       fromStatus: history.fromStatus,

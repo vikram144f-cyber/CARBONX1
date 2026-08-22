@@ -41,6 +41,19 @@ const aiReportSchema = z.object({
   generatedAt: z.string().datetime(),
 });
 
+const anchorSchema = z.object({
+  id: z.string(),
+  eventType: z.enum(["UNDER_ASSESSMENT", "AUDIT_RECOMMENDED", "RESOLVED"]),
+  status: z.enum(["PENDING", "SUBMITTED", "CONFIRMED", "FAILED"]),
+  txHash: z.string().nullable(),
+  network: z.string(),
+  contractAddress: z.string(),
+  confirmedAt: z.string().datetime().nullable(),
+  failureReason: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
 const eventSchema = z.object({
   id: z.string(),
   type: z.string(),
@@ -102,6 +115,7 @@ export const incidentResponseSchema = z.object({
   event: eventSchema,
   latestAssessment: assessmentSchema.nullable(),
   evidence: z.array(evidenceSchema),
+  anchors: z.array(anchorSchema),
   statusHistory: z.array(statusHistorySchema),
 });
 
