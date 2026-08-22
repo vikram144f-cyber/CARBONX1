@@ -66,11 +66,11 @@ Establish the core Next.js application shell, PostgreSQL database connection, au
 **So that** every calculation and external observation maintains strict provenance and immutability.
 
 ### Acceptance Criteria
-- [ ] Prisma schema defines `EnvironmentalEvent` with `createdByType` enum.
-- [ ] Prisma schema defines `RiskAssessment` preserving inputs, estimates, and confidence scores.
-- [ ] Prisma schema defines `Incident` and `IncidentStatusHistory` to track the state lifecycle.
-- [ ] Prisma schema defines `AIReport` and `BlockchainAnchor` linked to the assessment.
-- [ ] Prisma seed script provides at least 2 real carbon projects with boundaries (from public data like Global Forest Watch).
+- [x] Prisma schema defines `EnvironmentalEvent` with `createdByType` enum.
+- [x] Prisma schema defines `RiskAssessment` preserving inputs, estimates, and confidence scores.
+- [x] Prisma schema defines `Incident` and `IncidentStatusHistory` to track the state lifecycle.
+- [x] Prisma schema defines `AIReport` and `BlockchainAnchor` linked to the assessment.
+- [x] Prisma seed script provides at least 2 real carbon projects with boundaries (from public data like Global Forest Watch).
 
 ### Technical notes
 - PRD 2.2, 5.6, Architecture Spine AD-22

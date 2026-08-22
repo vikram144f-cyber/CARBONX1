@@ -24,9 +24,9 @@ Manage the creation, state transitions, and persistent timeline of an active env
 **So that** the event can be tracked through a resolution workflow.
 
 ### Acceptance Criteria
-- [ ] When a geospatial intersection is first detected (before risk scoring), create the `Incident` at status `EVENT_DETECTED`.
-- [ ] Create an `IncidentStatusHistory` entry transitioning from `null` to `EVENT_DETECTED` with `createdByType: SYSTEM_CALCULATION`.
-- [ ] Once the `RiskAssessment` is created, transition the incident from `EVENT_DETECTED` to `UNDER_ASSESSMENT` via `AuditService.transition()`, creating a second `IncidentStatusHistory` entry.
+- [x] When a geospatial intersection is first detected (before risk scoring), create the `Incident` at status `EVENT_DETECTED`.
+- [x] Create an `IncidentStatusHistory` entry transitioning from `null` to `EVENT_DETECTED` with `createdByType: SYSTEM_CALCULATION`.
+- [x] Once the `RiskAssessment` is created, transition the incident from `EVENT_DETECTED` to `UNDER_ASSESSMENT` via `AuditService.transition()`, creating a second `IncidentStatusHistory` entry.
 - [ ] The blockchain anchor for `EVENT_DETECTED→UNDER_ASSESSMENT` (per AD-9) is triggered at this point.
 
 ### Technical notes
@@ -44,10 +44,10 @@ Manage the creation, state transitions, and persistent timeline of an active env
 **So that** I can render the evidence timeline for the user.
 
 ### Acceptance Criteria
-- [ ] A `GET /api/incidents/[id]` route is implemented.
-- [ ] The response includes the `Incident`, the latest `RiskAssessment`, linked `EnvironmentalEvent` details, and the ordered `IncidentStatusHistory` array.
-- [ ] The API response is validated and typed using Zod.
-- [ ] Raw Prisma models are mapped to response DTOs, not leaked directly.
+- [x] A `GET /api/incidents/[id]` route is implemented.
+- [x] The response includes the `Incident`, the latest `RiskAssessment`, linked `EnvironmentalEvent` details, and the ordered `IncidentStatusHistory` array.
+- [x] The API response is validated and typed using Zod.
+- [x] Raw Prisma models are mapped to response DTOs, not leaked directly.
 
 ### Technical notes
 - PRD 5.5, Architecture Spine AD-1

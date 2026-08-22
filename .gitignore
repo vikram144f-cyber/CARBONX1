@@ -1,5 +1,9 @@
 .agents/
 _bmad/
 node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
 .env
 .env.local

@@ -24,9 +24,9 @@ Generate human-readable explanations of structured deterministic risk assessment
 **So that** the LLM only operates on factual, calculated data.
 
 ### Acceptance Criteria
-- [ ] Create an `AIReportInput` Zod schema to shape the data sent to the LLM.
-- [ ] Map the `RiskAssessment`, `EnvironmentalEvent`, and `CreditHolding` data into this strictly typed JSON structure.
-- [ ] Write a system prompt enforcing that the AI must only interpret the provided JSON, must not invent evidence, and must output structured JSON matching the required schema.
+- [x] Create an `AIReportInput` Zod schema to shape the data sent to the LLM.
+- [x] Map the `RiskAssessment`, `EnvironmentalEvent`, and `CreditHolding` data into this strictly typed JSON structure.
+- [x] Write a system prompt enforcing that the AI must only interpret the provided JSON, must not invent evidence, and must output structured JSON matching the required schema.
 
 ### Technical notes
 - PRD 5.3, Architecture Spine AD-5
@@ -44,9 +44,9 @@ Generate human-readable explanations of structured deterministic risk assessment
 
 ### Acceptance Criteria
 - [ ] Implement `AIService` to call the Gemini 1.5 Flash API (or OpenAI fallback) using `GEMINI_API_KEY`.
-- [ ] Validate the LLM's JSON response against an `AIReportOutput` Zod schema containing `facts`, `estimatedImpacts`, `uncertainties`, `portfolioConsequences`, and `recommendations`.
-- [ ] Check the AI output to ensure any numbers mentioned match the structured input numbers.
-- [ ] Save the valid response to the `AIReport` table linked to the `RiskAssessment` with `createdByType: AI_GENERATION`.
+- [x] Validate the LLM's JSON response against an `AIReportOutput` Zod schema containing `facts`, `estimatedImpacts`, `uncertainties`, `portfolioConsequences`, and `recommendations`.
+- [x] Check the AI output to ensure any numbers mentioned match the structured input numbers.
+- [x] Save the valid response to the `AIReport` table linked to the `RiskAssessment` with `createdByType: AI_GENERATION`.
 
 ### Technical notes
 - PRD 5.3, Architecture Spine AD-5, AD-22
@@ -63,10 +63,10 @@ Generate human-readable explanations of structured deterministic risk assessment
 **So that** an AI outage does not break the incident investigation workflow.
 
 ### Acceptance Criteria
-- [ ] If the LLM API times out, returns a 5xx error, or fails Zod schema validation, the `AIService` catches the error.
-- [ ] The `AIReport` field on the incident remains `null` or is flagged as unavailable.
-- [ ] The incident workflow continues unabated; it does not block the user from viewing the incident or taking audit action.
-- [ ] When `AIReport` is null, the API signals the frontend to render an "Interpretation Unavailable" fallback state.
+- [x] If the LLM API times out, returns a 5xx error, or fails Zod schema validation, the `AIService` catches the error.
+- [x] The `AIReport` field on the incident remains `null` or is flagged as unavailable.
+- [x] The incident workflow continues unabated; it does not block the user from viewing the incident or taking audit action.
+- [x] When `AIReport` is null, the API signals the frontend to render an "Interpretation Unavailable" fallback state.
 
 ### Technical notes
 - PRD 5.3, PRD 10.0 (Failures)

@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  portfolios Portfolio[]
+}
+
+model Portfolio {
+  id             String          @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  projects       CarbonProject[]
+  createdAt      DateTime        @default(now())
+
+  @@index([organizationId])
+}
+
+model CarbonProject {
+  id             String            @id @default(cuid())
+  portfolioId    String
+  portfolio      Portfolio         @relation(fields: [portfolioId], references: [id])
+  name           String
+  description    String?
+  registryId     String?
+  methodology    String?
+  countryCode    String?
+  centroidLng    Float
+  centroidLat    Float
+  boundaries     ProjectBoundary[]
+  creditHoldings CreditHolding[]
+  incidents      Incident[]
+  createdAt      DateTime          @default(now())
+
+  @@index([portfolioId])
+}
+
+model ProjectBoundary {
+  id          String           @id @default(cuid())
+  projectId   String
+  project     CarbonProject    @relation(fields: [projectId], references: [id])
+  version     Int
+  geojson     Json
+  source      String
+  sourceUrl   String?
+  quality     BoundaryQuality
+  verifiedAt  DateTime?
+  areaHa      Float?
+  acquiredAt  DateTime
+  isCurrent   Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  assessments RiskAssessment[]
+
+  @@unique([projectId, version])
+  @@index([projectId, isCurrent])
+}
+
+enum BoundaryQuality {
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+model CreditHolding {
+  id                String        @id @default(cuid())
+  projectId         String
+  project           CarbonProject @relation(fields: [projectId], references: [id])
+  vintage           Int?
+  registrySerialRef String?
+  issuedQuantity    Float
+  heldQuantity      Float
+  status            HoldingStatus @default(ACTIVE)
+  refValuePerUnit   Float
+  refCurrency       String        @default("USD")
+  valuationBasis    String
+  acquiredAt        DateTime?
+  createdAt         DateTime      @default(now())
+
+  @@index([projectId])
+}
+
+enum HoldingStatus {
+  ACTIVE
+  RETIRED
+  CANCELLED
+  TRANSFERRED
+}
+
+model EnvironmentalEvent {
+  id               String           @id @default(cuid())
+  type             EventType        @default(WILDFIRE)
+  sourceName       String
+  sourceId         String?
+  sourceInstrument String?
+  fingerprint      String?          @unique
+  observedAt       DateTime?
+  acquiredAt       DateTime         @default(now())
+  geometry         Json
+  geomType         String
+  sourceConfidence Float?
+  sourceMetadata   Json?
+  dataVersion      String?
+  originType       EventOriginType  @default(OBSERVED)
+  createdByType    CreatedByType
+  rawPayload       Json?
+  incidents        Incident[]
+  evidenceRecords  EvidenceRecord[]
+
+  @@index([observedAt])
+  @@index([sourceName, acquiredAt])
+}
+
+enum EventType {
+  WILDFIRE
+  DEFORESTATION
+  FLOOD
+  OTHER
+}
+
+enum EventOriginType {
+  OBSERVED
+  REPLAYED
+  MODELED
+  USER_REPORTED
+}
+
+model MonitoringCheckpoint {
+  id               String    @id @default(cuid())
+  sourceName       String    @unique
+  lastSuccessAt    DateTime?
+  lastAttemptAt    DateTime?
+  consecutiveFails Int       @default(0)
+  lastErrorMessage String?
+  updatedAt        DateTime  @updatedAt
+}
+
+enum CreatedByType {
+  EXTERNAL_SOURCE
+  SYSTEM_CALCULATION
+  AI_GENERATION
+  HUMAN_ACTION
+  REPLAY
+}
+
+model Incident {
+  id              String                  @id @default(cuid())
+  projectId       String
+  project         CarbonProject           @relation(fields: [projectId], references: [id])
+  eventId         String
+  event           EnvironmentalEvent      @relation(fields: [eventId], references: [id])
+  status          IncidentStatus          @default(EVENT_DETECTED)
+  statusHistory   IncidentStatusHistory[]
+  evidenceRecords EvidenceRecord[]
+  assessments     RiskAssessment[]
+  anchors         BlockchainAnchor[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([projectId, eventId])
+  @@index([eventId])
+  @@index([status])
+}
+
+enum IncidentStatus {
+  MONITORING
+  EVENT_DETECTED
+  UNDER_ASSESSMENT
+  AUDIT_RECOMMENDED
+  AUDIT_IN_PROGRESS
+  INSUFFICIENT_EVIDENCE
+  RESOLVED
+  REOPENED
+}
+
+model IncidentStatusHistory {
+  id            String          @id @default(cuid())
+  incidentId    String
+  incident      Incident        @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  fromStatus    IncidentStatus?
+  toStatus      IncidentStatus
+  actor         String
+  createdByType CreatedByType
+  reason        String?
+  evidenceRef   String?
+  createdAt     DateTime        @default(now())
+
+  @@index([incidentId, createdAt])
+}
+
+model EvidenceRecord {
+  id               String             @id @default(cuid())
+  incidentId       String
+  incident         Incident           @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  eventId          String
+  event            EnvironmentalEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  label            EvidenceLabel
+  createdByType    CreatedByType
+  geometryWkt      String?
+  sourceConfidence Float?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  assessmentInputs RiskAssessment[]   @relation("AssessmentEvidence")
+  anchorRecords    BlockchainAnchor[]
+
+  @@index([incidentId, createdAt])
+  @@index([eventId])
+}
+
+enum EvidenceLabel {
+  OBSERVED
+  ESTIMATED
+  MODELED
+  INFERRED
+}
+
+model RiskAssessment {
+  id                      String             @id @default(cuid())
+  incidentId              String
+  incident                Incident           @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  boundaryId              String
+  boundary                ProjectBoundary    @relation(fields: [boundaryId], references: [id], onDelete: Restrict)
+  engineVersion           String
+  methodologyVersion      String
+  inputEvidenceIds        String[]
+  assumptions             Json?
+  triggeringActor         String
+  createdByType           CreatedByType      @default(SYSTEM_CALCULATION)
+  estimatedImpactHa       Float?
+  impactPct               Float?
+  creditExposure          Float?
+  financialExposureEst    Float?
+  financialCurrency       String?
+  valuationBasis          String?
+  integrityRisk           RiskLevel
+  evidenceConfidence      ConfidenceLevel
+  evidenceConfidenceScore Float?
+  auditPriority           AuditPriorityLevel
+  uncertaintyNotes        String?
+  aiReport                AIReport?
+  blockchainAnchors       BlockchainAnchor[]
+  evidenceRecords         EvidenceRecord[]   @relation("AssessmentEvidence")
+  supersededById          String?
+  supersededBy            RiskAssessment?    @relation("AssessmentSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  supersedes              RiskAssessment[]   @relation("AssessmentSupersession")
+  createdAt               DateTime           @default(now())
+
+  @@unique([incidentId, boundaryId, engineVersion, methodologyVersion])
+  @@index([incidentId, createdAt])
+  @@index([boundaryId])
+  @@index([engineVersion, methodologyVersion])
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ConfidenceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AuditPriorityLevel {
+  ROUTINE
+  ELEVATED
+  URGENT
+}
+
+model AIReport {
+  id                    String         @id @default(cuid())
+  assessmentId          String         @unique
+  assessment            RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  modelId               String
+  promptVersion         String
+  inputSchemaVersion    String
+  outputSchemaVersion   String
+  facts                 String
+  estimatedImpacts      String
+  uncertainties         String
+  portfolioConsequences String
+  recommendations       String
+  rawResponse           Json?
+  createdByType         CreatedByType  @default(AI_GENERATION)
+  generatedAt           DateTime       @default(now())
+  createdAt             DateTime       @default(now())
+  approvedForAudit      Boolean        @default(false)
+  approvedByUserId      String?
+
+  @@index([createdAt])
+}
+
+model BlockchainAnchor {
+  id              String          @id @default(cuid())
+  incidentId      String
+  incident        Incident        @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  assessmentId    String?
+  assessment      RiskAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  evidenceId      String?
+  evidence        EvidenceRecord? @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  canonicalJson   Json
+  hash            String          @unique
+  network         String
+  contractAddress String
+  txHash          String?         @unique
+  status          AnchorStatus    @default(PENDING)
+  eventType       AnchorEventType
+  confirmedAt     DateTime?
+  failureReason   String?
+  retryCount      Int             @default(0)
+  createdByType   CreatedByType   @default(SYSTEM_CALCULATION)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([assessmentId, eventType])
+  @@index([incidentId, status])
+  @@index([assessmentId])
+}
+
+enum AnchorStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+enum AnchorEventType {
+  UNDER_ASSESSMENT
+  AUDIT_RECOMMENDED
+  RESOLVED
+}
