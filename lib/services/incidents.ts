@@ -155,7 +155,7 @@ export function mapIncidentToResponse(
       countryCode: incident.project.countryCode,
       centroidLng: incident.project.centroidLng,
       centroidLat: incident.project.centroidLat,
-      currentBoundary: incident.project.boundaries[0]
+      currentBoundary: incident.project.boundaries?.[0]
         ? {
             ...incident.project.boundaries[0],
             verifiedAt: incident.project.boundaries[0].verifiedAt

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const jsonValueSchema: z.ZodType<unknown> = z.unknown();
+const dateTime = z.string().datetime();
 
 export const incidentIdParamSchema = z.object({
   id: z.string().trim().min(1).max(128),
