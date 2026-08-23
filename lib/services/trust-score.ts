@@ -389,10 +389,12 @@ export class TrustScoreService {
         source: `ev-doc-${projectId}`,
         target: `ev-gis-${projectId}`,
         type: anomalies.some((a) => a.type.includes("DENSITY")) ? "CONFLICTS_WITH" : "CONSISTENT_WITH",
-        description: biomassDensity === null
-          ? "The stored holding quantity and project area are insufficient for an inventory-density comparison."
-          : `Held volume (${totalCredits.toLocaleString()} tCO2e) on ${measuredAreaHa.toFixed(1)} ha implies ${biomassDensity.toFixed(1)} tCO2e/ha inventory density.`,
+        description:
+          model.biomassDensity === null
+            ? "The stored holding quantity and project area are insufficient for an inventory-density comparison."
+            : `Held volume (${totalCredits.toLocaleString()} tCO2e) on ${measuredAreaHa.toFixed(1)} ha implies ${model.biomassDensity.toFixed(1)} tCO2e/ha inventory density.`,
       },
+
       {
         source: `ev-holdings-${projectId}`,
         target: `ev-gis-${projectId}`,

@@ -67,13 +67,14 @@ const boundarySchema = z.object({
   id: z.string(),
   version: z.number().int(),
   source: z.string(),
-  sourceUrl: z.string().url().nullable(),
+  sourceUrl: z.string().nullable(),
   quality: z.string(),
   verifiedAt: dateTime.nullable(),
   areaHa: z.number().nullable(),
   isCurrent: z.boolean(),
   geojson: z.unknown().optional(),
 });
+
 
 
 const holdingSchema = z.object({

@@ -196,7 +196,6 @@ export function SatelliteMap({
     estimated: true,
     incidents: true,
     projects: true,
-    ndviHud: true,
   });
 
   const layersRef = useRef<{
@@ -218,10 +217,12 @@ export function SatelliteMap({
     if (!mapContainerRef.current || mapRef.current) return;
 
     let L: typeof import("leaflet");
+    let cancelled = false;
 
     const initMap = async () => {
       try {
         L = await import("leaflet");
+        if (cancelled || !mapContainerRef.current || mapRef.current) return;
 
         // Safe prototype cleanup
         delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -231,12 +232,17 @@ export function SatelliteMap({
           shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
         });
 
-        const map = L.map(mapContainerRef.current!, {
+        const map = L.map(mapContainerRef.current, {
           center: [centroid[1], centroid[0]],
           zoom,
           zoomControl: false,
           attributionControl: true,
         });
+
+        if (cancelled) {
+          map.remove();
+          return;
+        }
 
         L.control.zoom({ position: "topright" }).addTo(map);
 
@@ -281,6 +287,7 @@ export function SatelliteMap({
     }
 
     return () => {
+      cancelled = true;
       resizeObserver.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
@@ -640,16 +647,6 @@ export function SatelliteMap({
             {t.label}
           </button>
         ))}
-      </div>
-
-      {/* Floating Live Sentinel-2 NDVI Telemetry Badge */}
-      <div className="absolute top-14 right-3 z-[1000] hidden sm:flex items-center gap-2 rounded border border-[rgba(114,176,132,0.35)] bg-[rgba(18,16,37,0.92)] px-3 py-1.5 text-xs backdrop-blur shadow-lg">
-        <span className="h-2 w-2 rounded-full bg-[var(--cx-success)] animate-pulse" />
-        <div className="cx-mono text-[10px]">
-          <span className="text-[var(--cx-text-muted)]">SENTINEL-2 NDVI: </span>
-          <span className="font-bold text-[var(--cx-success)]">0.624</span> ·{" "}
-          <span className="text-[var(--cx-accent)]">OPTIMAL CANOPY</span>
-        </div>
       </div>
 
       {/* Bottom-Left Layer Toggles */}
