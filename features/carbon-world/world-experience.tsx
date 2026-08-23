@@ -22,7 +22,19 @@ const CarbonWorldScene = dynamic(
   () => import("./world-scene").then((module) => module.CarbonWorldScene),
   {
     ssr: false,
-    loading: () => <div className="absolute inset-0 grid place-items-center bg-cx-bg text-xs uppercase tracking-[0.2em] text-emerald-200/60">Loading operations world…</div>,
+    loading: () => (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[var(--cx-bg)] p-6 text-center">
+        <span className="cx-mono text-xs uppercase tracking-[0.2em] text-[var(--cx-accent)]">
+          Initializing 3D Operations World…
+        </span>
+        <a
+          href="/?mode=command"
+          className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-3 py-1.5 text-xs uppercase tracking-wider text-white transition hover:border-[var(--cx-accent)]"
+        >
+          Open 2D Command Console →
+        </a>
+      </div>
+    ),
   },
 );
 
@@ -57,21 +69,27 @@ function WorldHud({
 }) {
   const online = state.systemReady && !error;
   return (
-    <div className="pointer-events-auto absolute inset-x-0 top-0 z-10 flex items-start justify-between p-4 sm:p-6 lg:p-8" style={{ left: 0, pointerEvents: "auto", position: "absolute", right: 0, top: 0, zIndex: 10 }}>
-      <div className="cx-surface-elevated pointer-events-auto rounded-2xl px-4 py-3 shadow-xl backdrop-blur-md sm:px-5">
+    <div className="pointer-events-auto absolute inset-x-0 top-0 z-10 flex items-start justify-between p-4 sm:p-6 lg:p-8">
+      <div className="cx-surface-elevated pointer-events-auto rounded-lg px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-[11px] font-bold text-emerald-200">CX</span>
-          <div><p className="text-xs font-semibold tracking-[0.24em] text-white">CARBONX</p><p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-emerald-300/65">Carbon intelligence operations</p></div>
+          <span className="cx-mono flex h-7 w-7 items-center justify-center rounded border border-[var(--cx-accent)] bg-[rgba(237,142,89,0.12)] text-[11px] font-bold text-[var(--cx-accent)]">CX</span>
+          <div>
+            <p className="cx-mono text-xs font-semibold tracking-[0.2em] text-white">CARBONX</p>
+            <p className="text-[9px] uppercase tracking-[0.14em] text-[var(--cx-text-muted)]">Operations World</p>
+          </div>
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 sm:gap-3">
-        <div className="cx-surface-elevated rounded-2xl px-4 py-3 text-right shadow-xl backdrop-blur-md sm:px-5">
-          <p className={`flex items-center justify-end gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] ${online ? "text-emerald-200" : "text-amber-200"}`}><span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" : "animate-pulse bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.7)]"}`} /> {error ? "Data sync delayed" : online ? "System online" : "Connecting data"}</p>
-          <p className="mt-2 text-[11px] text-slate-400">{error ?? worldStatusLine(state)}</p>
+        <div className="cx-surface-elevated rounded-lg px-4 py-2.5 text-right">
+          <p className={`cx-mono flex items-center justify-end gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] ${online ? "text-[var(--cx-accent)]" : "text-[var(--cx-warning)]"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-[var(--cx-accent)]" : "animate-pulse bg-[var(--cx-warning)]"}`} />
+            {error ? "Data sync delayed" : online ? "System online" : "Connecting data"}
+          </p>
+          <p className="cx-mono mt-1 text-[11px] text-[var(--cx-text-muted)]">{error ?? worldStatusLine(state)}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onShowHelp} className="pointer-events-auto rounded-full border border-white/10 bg-[#07110f]/65 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 backdrop-blur-md transition hover:border-white/20 hover:text-white">Controls</button>
-          <button type="button" onClick={onCommandMode} className="pointer-events-auto rounded-full border border-white/15 bg-[#07110f]/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300 backdrop-blur-md transition hover:border-emerald-300/30 hover:text-emerald-200">Command Mode</button>
+          <button type="button" onClick={onShowHelp} className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[var(--cx-text-muted)] hover:text-white">Controls</button>
+          <button type="button" onClick={onCommandMode} className="cx-mono rounded border border-[var(--cx-border-strong)] bg-[var(--cx-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--cx-accent)] hover:bg-[rgba(237,142,89,0.1)]">Command Mode</button>
         </div>
       </div>
     </div>
@@ -117,16 +135,28 @@ export function WorldExperience() {
   }, [router, state]);
 
   if (mode === "command") return <CommandModeFallback focus={focus} initialData={data} />;
-  if (webglReady === null) return <div className="grid min-h-screen place-items-center bg-cx-bg text-xs uppercase tracking-[0.2em] text-emerald-200/70">Starting operations world…</div>;
+  if (webglReady === null) return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--cx-bg)] p-6 text-center">
+      <span className="cx-mono text-xs uppercase tracking-[0.2em] text-[var(--cx-accent)]">
+        Starting operations world…
+      </span>
+      <a
+        href="/?mode=command"
+        className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-3 py-1.5 text-xs uppercase tracking-wider text-white transition hover:border-[var(--cx-accent)]"
+      >
+        Open 2D Command Console →
+      </a>
+    </div>
+  );
   if (!webglReady) return <CommandModeFallback reason="WebGL is unavailable in this browser. Command Mode remains fully functional." focus={focus} />;
   if (touchDevice) return <CommandModeFallback reason="Touch devices use Command Mode for a reliable responsive experience." focus={focus} />;
 
   return (
-    <div className="relative h-[100svh] min-h-[640px] overflow-hidden bg-[#04120e]" style={{ height: "100dvh", minHeight: 640, position: "relative" }}>
+    <div className="relative h-[100svh] min-h-[640px] overflow-hidden bg-[var(--cx-bg)]" style={{ height: "100dvh", minHeight: 640, position: "relative" }}>
       <WorldHud state={state} error={error} onShowHelp={() => setIntroActive(true)} onCommandMode={() => router.push("/?mode=command")} />
       <CarbonWorldScene state={state} introActive={introActive} nearbyId={nearby?.id ?? null} onNearbyChange={setNearby} onInteract={openDestination} />
-      {!introActive ? <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 before:absolute before:left-1/2 before:top-0 before:h-4 before:w-px before:-translate-x-1/2 before:bg-emerald-100/35 after:absolute after:left-0 after:top-1/2 after:h-px after:w-4 after:-translate-y-1/2 after:bg-emerald-100/35" style={{ left: "50%", pointerEvents: "none", position: "absolute", top: "50%", transform: "translate(-50%, -50%)", zIndex: 10 }} /> : null}
-      <div className="pointer-events-none absolute bottom-5 left-5 z-10 hidden text-[10px] uppercase tracking-[0.16em] text-slate-400/70 sm:block" style={{ bottom: 20, left: 20, pointerEvents: "none", position: "absolute", zIndex: 10 }}>WASD / arrows to drive · drag canvas to orbit · E or click to enter</div>
+      {!introActive ? <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 before:absolute before:left-1/2 before:top-0 before:h-4 before:w-px before:-translate-x-1/2 before:bg-[var(--cx-accent)]/40 after:absolute after:left-0 after:top-1/2 after:h-px after:w-4 after:-translate-y-1/2 after:bg-[var(--cx-accent)]/40" style={{ left: "50%", pointerEvents: "none", position: "absolute", top: "50%", transform: "translate(-50%, -50%)", zIndex: 10 }} /> : null}
+      <div className="pointer-events-none absolute bottom-5 left-5 z-10 hidden cx-mono text-[10px] uppercase tracking-[0.16em] text-[var(--cx-text-muted)] sm:block">WASD / arrows to drive · drag canvas to orbit · E or click to enter</div>
       {!introActive && nearby ? <InteractionPrompt destination={nearby} onInteract={() => openDestination(nearby.id)} /> : null}
       {introActive ? <GuidedIntro onEnter={enterWorld} /> : null}
     </div>
