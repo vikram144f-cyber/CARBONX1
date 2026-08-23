@@ -1,7 +1,7 @@
-import "server-only";
-
 import { prisma } from "../prisma";
 import { NotFoundError } from "./errors";
+import { getStoredProject } from "./project-store";
+
 
 export interface ScoreComponent {
   component_name: string;
@@ -199,8 +199,9 @@ export class TrustScoreService {
     }
 
     if (!project) {
-      project = getFallbackProject(projectId);
+      project = getStoredProject(projectId) ?? getFallbackProject(projectId);
     }
+
 
     if (!project) {
       throw new NotFoundError("Project not found");
