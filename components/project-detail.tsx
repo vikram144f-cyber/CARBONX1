@@ -18,6 +18,7 @@ import {
   projectResponseSchema,
   type ProjectResponse,
 } from "../lib/validations/portfolio";
+import { TrustScoreCard } from "./trust-score-card";
 import type { FirmsPoint, GeoJsonFeature, SatelliteMapProps } from "./satellite-map";
 
 const SatelliteMap = dynamic(
@@ -215,8 +216,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </div>
       </section>
 
+      {/* ── AI Truth Score & Evidence Verification ──────────────────────── */}
+      <TrustScoreCard projectId={data.id} />
+
       {/* ── Structured Sections: Provenance, Holdings, Incidents ─────────── */}
       <section className="mt-8 grid gap-8 lg:grid-cols-2">
+
         {/* Boundary Provenance */}
         <Panel>
           <div className="border-b border-[var(--cx-border)] px-5 py-3">

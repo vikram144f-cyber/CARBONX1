@@ -1,16 +1,10 @@
 "use client";
 
 /**
- * SatelliteMap — reusable Leaflet-based satellite map component.
+ * SatelliteMap — robust Leaflet-based satellite map component.
  *
- * Uses Esri World Imagery (publicly accessible satellite tiles)
- * with official attribution preserved.
- *
- * DATA HONESTY LABELS:
- *  - Project boundaries:  Real registry GeoJSON
- *  - FIRMS points:        Real NASA FIRMS thermal anomaly points (OBSERVED)
- *  - Buffered zones:      CARBONX-derived from FIRMS buffer (ESTIMATED)
- *  - Intersections:       CARBONX calculated overlap polygon (CALCULATED)
+ * Uses Esri World Imagery (satellite tiles) with automatic sizing invalidation,
+ * fallback tile resilience, and boundary auto-fit.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -64,7 +58,7 @@ export type SatelliteMapProps = {
 const ESRI_SATELLITE_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const ESRI_ATTRIBUTION =
-  "&copy; Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN";
+  "&copy; Esri, Maxar, Earthstar Geographics, USDA, USGS, IGN";
 
 type LayerVisibility = {
   boundary: boolean;
@@ -117,7 +111,7 @@ export function SatelliteMap({
       try {
         L = await import("leaflet");
 
-        // Safe prototype clean
+        // Safe prototype cleanup
         delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -132,7 +126,6 @@ export function SatelliteMap({
           attributionControl: true,
         });
 
-        // Add custom minimal zoom control in top right
         L.control.zoom({ position: "topright" }).addTo(map);
 
         L.tileLayer(ESRI_SATELLITE_URL, {
@@ -142,6 +135,10 @@ export function SatelliteMap({
 
         mapRef.current = map;
         setMapReady(true);
+
+        // Invalidate size on initial mount and layout ticks
+        setTimeout(() => map.invalidateSize(), 150);
+        setTimeout(() => map.invalidateSize(), 500);
       } catch (err) {
         console.error("[SatelliteMap] init failed", err);
         setError("Geospatial map failed to initialize.");
@@ -150,7 +147,19 @@ export function SatelliteMap({
 
     void initMap();
 
+    // ResizeObserver to automatically resize map tiles when container dimensions change
+    const observer = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    });
+
+    if (mapContainerRef.current) {
+      observer.observe(mapContainerRef.current);
+    }
+
     return () => {
+      observer.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -158,6 +167,14 @@ export function SatelliteMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update center when centroid changes
+  useEffect(() => {
+    if (mapRef.current && mapReady) {
+      mapRef.current.setView([centroid[1], centroid[0]], mapRef.current.getZoom());
+      mapRef.current.invalidateSize();
+    }
+  }, [centroid, mapReady]);
 
   // Update overlays
   useEffect(() => {
@@ -177,21 +194,29 @@ export function SatelliteMap({
         const geom =
           (boundary as { type: string }).type === "Feature"
             ? (boundary as { geometry: unknown }).geometry
-            : boundary;
+            : (boundary as { type: string }).type === "FeatureCollection"
+              ? (boundary as unknown as Parameters<typeof L.geoJSON>[0])
+              : boundary;
         try {
           const layer = L.geoJSON(geom as Parameters<typeof L.geoJSON>[0], {
             style: {
               color: "#ED8E59",
-              weight: 2,
+              weight: 2.5,
               opacity: 0.95,
-              fillOpacity: 0.06,
+              fillOpacity: 0.08,
               fillColor: "#ED8E59",
             },
-          }).bindTooltip("Project Boundary · Registry Provenance", {
+          }).bindTooltip("Project Boundary · Registered Spatial Geometry", {
             sticky: true,
           });
           lr.boundary = layer;
           if (layers.boundary) layer.addTo(map);
+
+          // Auto-fit to boundary on initial load
+          const b = layer.getBounds();
+          if (b.isValid()) {
+            map.fitBounds(b, { padding: [30, 30], maxZoom: 14 });
+          }
         } catch {
           // non-fatal
         }
@@ -210,7 +235,7 @@ export function SatelliteMap({
               ? `${(pt.sourceConfidence * 100).toFixed(0)}%`
               : "n/a";
           const marker = L.circleMarker([pt.latitude, pt.longitude], {
-            radius: 6,
+            radius: 6.5,
             color: "#E56B78",
             fillColor: "#E56B78",
             fillOpacity: 0.85,
@@ -359,6 +384,8 @@ export function SatelliteMap({
 
     if (boundsPoints.length >= 2) {
       map.fitBounds(boundsPoints as [number, number][], { padding: [30, 30] });
+    } else {
+      map.setView([centroid[1], centroid[0]], zoom);
     }
   };
 
