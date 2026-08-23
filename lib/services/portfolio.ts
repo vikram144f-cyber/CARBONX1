@@ -6,8 +6,10 @@ import { prisma } from "../prisma";
 import type {
   PortfolioResponse,
   ProjectResponse,
+} from "../validations/portfolio";
 import { NotFoundError } from "./errors";
 import { getStoredProject } from "./project-store";
+
 
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
