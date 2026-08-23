@@ -36,7 +36,8 @@ export function CommandModeFallback({
           </p>
         ) : null}
       </div>
-      <PortfolioDashboard focus={focus} initialData={initialData} />
+      <PortfolioDashboard />
     </div>
   );
 }
+
