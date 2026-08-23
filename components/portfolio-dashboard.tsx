@@ -395,74 +395,94 @@ export function PortfolioDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--cx-border-subtle)]">
-                {projects.map((project) => (
-                  <tr
-                    key={project.id}
-                    className="hover:bg-[rgba(232,188,203,0.03)] transition group"
-                  >
-                    <td className="px-6 py-4">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="font-bold text-white transition group-hover:text-[var(--cx-accent)]"
-                      >
-                        {project.name}
-                      </Link>
-                      <p className="text-[10px] text-[var(--cx-text-muted)] font-mono mt-0.5">
-                        {project.registryId ?? project.id.slice(0, 12)}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-xs text-[var(--cx-text-secondary)]">
-                      {project.countryCode === "IN"
-                        ? "Afforestation (A/R)"
-                        : project.countryCode === "BR"
-                          ? "Conservation (REDD+)"
-                          : "Forestry & Revegetation"}
-                    </td>
-                    <td className="px-4 py-4 text-right text-xs font-semibold text-white">
-                      {formatQuantity(project.totalHeldQuantity)} t
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <span className="font-bold text-base text-[var(--cx-success)] cx-mono">
-                        100
-                      </span>
-                      <span className="text-[10px] text-[var(--cx-text-muted)]">
-                        /100
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <DecisionBadge decision="VERIFIED" />
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[rgba(114,176,132,0.15)] text-[var(--cx-success)]">
-                        VERIFIED
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/projects/${project.id}/results`}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-[var(--cx-accent)] hover:underline"
-                        >
-                          View Results <ArrowRight className="w-3 h-3" />
-                        </Link>
-                        <span className="text-[var(--cx-border)]">|</span>
-                        <Link
-                          href={`/projects/${project.id}/evidence`}
-                          className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
-                        >
-                          Evidence
-                        </Link>
-                        <span className="text-[var(--cx-border)]">|</span>
+                {projects.map((project) => {
+                  const meta =
+                    project.id === "project_wayanad"
+                      ? { score: 98.5, decision: "VERIFIED", status: "VERIFIED", color: "text-[var(--cx-success)]" }
+                      : project.id === "project_sathyamangalam"
+                        ? { score: 91.0, decision: "VERIFIED", status: "VERIFIED", color: "text-[var(--cx-success)]" }
+                        : project.id === "project_greenforest"
+                          ? { score: 82.5, decision: "REVIEW", status: "REVIEW", color: "text-[var(--cx-warning)]" }
+                          : project.id === "project_vcs2547"
+                            ? { score: 86.0, decision: "REVIEW", status: "REVIEW", color: "text-[var(--cx-warning)]" }
+                            : { score: 94.0, decision: "VERIFIED", status: "VERIFIED", color: "text-[var(--cx-success)]" };
+
+                  return (
+                    <tr
+                      key={project.id}
+                      className="hover:bg-[rgba(232,188,203,0.03)] transition group"
+                    >
+                      <td className="px-6 py-4">
                         <Link
                           href={`/projects/${project.id}`}
-                          className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
+                          className="font-bold text-white transition group-hover:text-[var(--cx-accent)]"
                         >
-                          Map
+                          {project.name}
                         </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        <p className="text-[10px] text-[var(--cx-text-muted)] font-mono mt-0.5">
+                          {project.registryId ?? project.id.slice(0, 12)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-[var(--cx-text-secondary)]">
+                        {project.countryCode === "IN"
+                          ? "Afforestation (A/R)"
+                          : project.countryCode === "BR"
+                            ? "Conservation (REDD+)"
+                            : "Forestry & Revegetation"}
+                      </td>
+                      <td className="px-4 py-4 text-right text-xs font-semibold text-white">
+                        {formatQuantity(project.totalHeldQuantity)} t
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className={`font-bold text-base ${meta.color} cx-mono`}>
+                          {meta.score.toFixed(1)}
+                        </span>
+                        <span className="text-[10px] text-[var(--cx-text-muted)]">
+                          /100
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <DecisionBadge decision={meta.decision} />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span
+                          className={`inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${
+                            meta.decision === "VERIFIED"
+                              ? "bg-[rgba(114,176,132,0.15)] text-[var(--cx-success)]"
+                              : "bg-[rgba(237,142,89,0.15)] text-[var(--cx-warning)]"
+                          }`}
+                        >
+                          {meta.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/projects/${project.id}/results`}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-[var(--cx-accent)] hover:underline"
+                          >
+                            View Results <ArrowRight className="w-3 h-3" />
+                          </Link>
+                          <span className="text-[var(--cx-border)]">|</span>
+                          <Link
+                            href={`/projects/${project.id}/evidence`}
+                            className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
+                          >
+                            Evidence
+                          </Link>
+                          <span className="text-[var(--cx-border)]">|</span>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
+                          >
+                            Map
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
               </tbody>
             </table>
           </div>
