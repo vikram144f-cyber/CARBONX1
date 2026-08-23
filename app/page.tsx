@@ -1,18 +1,19 @@
-import { Suspense } from "react";
-import { WorldExperience } from "@/features/carbon-world/world-experience";
+import dynamic from "next/dynamic";
+
+const WorldExperience = dynamic(
+  () => import("@/features/carbon-world/world-experience").then((module) => module.WorldExperience),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--cx-bg)]">
+        <span className="cx-mono text-xs uppercase tracking-[0.2em] text-[var(--cx-accent)]">
+          Loading CARBONX…
+        </span>
+      </div>
+    ),
+  },
+);
 
 export default function HomePage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[var(--cx-bg)] flex items-center justify-center">
-          <span className="cx-mono text-xs uppercase tracking-[0.2em] text-[var(--cx-accent)]">
-            Loading CARBONX...
-          </span>
-        </div>
-      }
-    >
-      <WorldExperience />
-    </Suspense>
-  );
+  return <WorldExperience />;
 }
