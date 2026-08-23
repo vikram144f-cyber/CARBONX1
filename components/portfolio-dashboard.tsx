@@ -111,8 +111,9 @@ export function PortfolioDashboard() {
   const loadData = () => {
     fetch("/api/portfolio", { cache: "no-store" })
       .then((res) => res.json())
-      .then((body) => {
-        const parsed = portfolioResponseSchema.safeParse(body);
+      .then((envelope) => {
+        const payload = envelope?.data ?? envelope;
+        const parsed = portfolioResponseSchema.safeParse(payload);
         if (parsed.success) {
           setData(parsed.data);
           setError(null);
@@ -121,6 +122,7 @@ export function PortfolioDashboard() {
           setError("Data validation failed for portfolio record.");
         }
       })
+
       .catch((err) => {
         console.error("[PortfolioDashboard] fetch error", err);
         setError("Unable to connect to carbon intelligence server.");
