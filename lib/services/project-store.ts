@@ -79,6 +79,26 @@ export function getAllStoredProjects(): StoredProject[] {
   return Array.from(projectStore.values());
 }
 
+function createValidPolygon(lng: number, lat: number, areaHa: number) {
+  const delta = Math.sqrt(areaHa / 10000) * 0.005 || 0.01;
+  return {
+    type: "Feature",
+    properties: { calculated_area_ha: areaHa },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [lng - delta, lat - delta],
+          [lng + delta, lat - delta],
+          [lng + delta, lat + delta],
+          [lng - delta, lat + delta],
+          [lng - delta, lat - delta],
+        ],
+      ],
+    },
+  };
+}
+
 export function getFallbackProject(projectId: string): StoredProject {
   const map: Record<string, StoredProject> = {
     project_wayanad: {
@@ -100,7 +120,7 @@ export function getFallbackProject(projectId: string): StoredProject {
           sourceUrl: null,
           verifiedAt: "2026-01-15T00:00:00Z",
           isCurrent: true,
-          geojson: { type: "Feature" },
+          geojson: createValidPolygon(76.132, 11.685, 450.0),
         },
       ],
       creditHoldings: [
@@ -137,7 +157,7 @@ export function getFallbackProject(projectId: string): StoredProject {
           sourceUrl: null,
           verifiedAt: "2026-02-01T00:00:00Z",
           isCurrent: true,
-          geojson: { type: "Feature" },
+          geojson: createValidPolygon(77.234, 11.583, 620.0),
         },
       ],
       creditHoldings: [
@@ -174,7 +194,7 @@ export function getFallbackProject(projectId: string): StoredProject {
           sourceUrl: null,
           verifiedAt: "2026-01-20T00:00:00Z",
           isCurrent: true,
-          geojson: { type: "Feature" },
+          geojson: createValidPolygon(78.486, 17.385, 520.0),
         },
       ],
       creditHoldings: [
@@ -211,7 +231,7 @@ export function getFallbackProject(projectId: string): StoredProject {
           sourceUrl: null,
           verifiedAt: "2026-01-10T00:00:00Z",
           isCurrent: true,
-          geojson: { type: "Feature" },
+          geojson: createValidPolygon(19.818, 41.327, 310.0),
         },
       ],
       creditHoldings: [
@@ -248,7 +268,7 @@ export function getFallbackProject(projectId: string): StoredProject {
           sourceUrl: null,
           verifiedAt: "2026-01-05T00:00:00Z",
           isCurrent: true,
-          geojson: { type: "Feature" },
+          geojson: createValidPolygon(-60.021, -3.119, 890.0),
         },
       ],
       creditHoldings: [
@@ -264,9 +284,32 @@ export function getFallbackProject(projectId: string): StoredProject {
           valuationBasis: "MARKET",
         },
       ],
-      incidents: [],
+      incidents: [
+        {
+          id: "inc_amazon_01",
+          projectId: "project_greenforest",
+          eventId: "ev_firms_amazon_01",
+          event: { id: "ev_firms_amazon_01", type: "THERMAL_HOTSPOT" },
+          status: "UNDER_ASSESSMENT",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          assessments: [
+            {
+              integrityRisk: "MEDIUM",
+              evidenceConfidence: "HIGH",
+              auditPriority: "ELEVATED",
+              impactPct: 8.5,
+              estimatedImpactHa: 75.6,
+              creditExposure: 1870,
+              financialExposureEst: 42075,
+              createdAt: new Date(),
+            },
+          ],
+        },
+      ],
     },
   };
+
 
   return (
     map[projectId] ?? {
