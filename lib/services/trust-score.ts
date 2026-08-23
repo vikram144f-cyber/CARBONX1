@@ -65,66 +65,110 @@ export interface TrustScoreResult {
   model_version: string;
 }
 
-async function synthesizeWithNvidia(
+async function synthesizeWithAI(
   projectName: string,
   registryId: string | null,
   score: number,
   decision: string,
   anomalies: Anomaly[],
   heldQuantity: number,
-): Promise<string | null> {
-  const apiKey = (process.env.NVIDIA_API_KEY || process.env.AI_API_KEY)?.trim();
-  if (!apiKey) return null;
+): Promise<{ text: string; model: string } | null> {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const nvidiaKey = (process.env.NVIDIA_API_KEY || process.env.AI_API_KEY)?.trim();
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+  // 1. Try Gemini if GEMINI_API_KEY is configured
+  if (geminiKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
 
-    const res = await fetch(
-      "https://integrate.api.nvidia.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const promptText = `You are an expert environmental carbon-credit validation analyst for CARBONX. Write a 2-3 sentence authoritative, factual executive assessment of multi-modal evidence reconciliation.
+Project Name: ${projectName}
+Registry ID: ${registryId ?? "VCS"}
+Calculated Multi-Modal Truth Score: ${score.toFixed(1)}/100
+Decision: ${decision}
+Held Carbon Inventory: ${heldQuantity.toLocaleString()} tCO2e
+Detected Anomalies: ${anomalies.map((a) => a.message).join("; ") || "None"}`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: { maxOutputTokens: 180, temperature: 0.2 },
+          }),
         },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: "meta/llama-3.3-70b-instruct",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an expert environmental carbon-credit validation analyst for CARBONX. Write a 2-3 sentence authoritative, factual executive assessment of multi-modal evidence reconciliation.",
-            },
-            {
-              role: "user",
-              content: `Project Name: ${projectName}
+      );
+
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) return { text, model: "google/gemini-1.5-flash" };
+      }
+    } catch (e) {
+      console.warn("[TrustScoreService] Gemini synthesis note", e);
+    }
+  }
+
+  // 2. Try NVIDIA NIM (Llama 3.3 70B Instruct)
+  if (nvidiaKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${nvidiaKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: "meta/llama-3.3-70b-instruct",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert environmental carbon-credit validation analyst for CARBONX. Write a 2-3 sentence authoritative, factual executive assessment of multi-modal evidence reconciliation.",
+              },
+              {
+                role: "user",
+                content: `Project Name: ${projectName}
 Registry ID: ${registryId ?? "VCS"}
 Calculated Multi-Modal Truth Score: ${score.toFixed(1)}/100
 Decision: ${decision}
 Held Carbon Inventory: ${heldQuantity.toLocaleString()} tCO2e
 Detected Anomalies: ${anomalies.map((a) => a.message).join("; ") || "None"}
 Please generate an executive verification statement.`,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 180,
-        }),
-      },
-    );
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 180,
+          }),
+        },
+      );
 
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const text = data.choices?.[0]?.message?.content?.trim();
-      if (text) return text;
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (text) return { text, model: "nvidia/llama-3.3-70b-instruct" };
+      }
+    } catch (err) {
+      console.warn("[TrustScoreService] NVIDIA NIM synthesis note", err);
     }
-  } catch (err) {
-    console.warn("[TrustScoreService] NVIDIA NIM dynamic synthesis note", err);
   }
+
   return null;
 }
 
@@ -231,7 +275,6 @@ export class TrustScoreService {
       satReason = "Localized NDVI stress observed in buffered event perimeter";
       ndviVal = 0.48;
     } else if (projectId === "project_vcs2547") {
-      // Albania
       satScore = 16.5;
       satReason = "Mediterranean coastal wetland seasonal reflectance variance";
       ndviVal = 0.54;
@@ -339,6 +382,20 @@ export class TrustScoreService {
 
     const auditRecommended = decision !== "VERIFIED" || anomalies.length > 0;
 
+    const aiResult = await synthesizeWithAI(
+      project.name,
+      project.registryId,
+      truthScore,
+      decision,
+      anomalies,
+      totalCredits,
+    );
+
+    const defaultSummary =
+      decision === "VERIFIED"
+        ? `Comprehensive multi-modal evaluation demonstrates high evidence consistency across registered GIS boundaries, Sentinel-2 canopy measurements, and ground telemetry for ${project.name}. Overall Truth Score is ${truthScore.toFixed(1)}/100.`
+        : `Multi-modal evaluation detected ${anomalies.length} anomaly/discrepancies. Cross-referencing indicates attention is needed regarding spatial consistency. Human audit is recommended.`;
+
     const evidence: EvidenceNode[] = [
       {
         id: `ev-doc-${projectId}`,
@@ -350,7 +407,7 @@ export class TrustScoreService {
         confidence: 0.95,
         provenance: {
           registry: project.registryId ?? "VCS",
-          extraction: "nvidia-llama-3.3-70b",
+          extraction: aiResult?.model ?? "nvidia/llama-3.3-70b-instruct",
         },
       },
       {
@@ -409,21 +466,6 @@ export class TrustScoreService {
       },
     ];
 
-    // Synthesize real-time AI summary using NVIDIA NIM (Llama 3.3 70B)
-    const nvidiaAiSummary = await synthesizeWithNvidia(
-      project.name,
-      project.registryId,
-      truthScore,
-      decision,
-      anomalies,
-      totalCredits,
-    );
-
-    const defaultSummary =
-      decision === "VERIFIED"
-        ? `Comprehensive multi-modal evaluation demonstrates high evidence consistency across registered GIS boundaries, Sentinel-2 canopy measurements, and ground telemetry for ${project.name}. Overall Truth Score is ${truthScore.toFixed(1)}/100.`
-        : `Multi-modal evaluation detected ${anomalies.length} anomaly/discrepancies. Cross-referencing indicates attention is needed regarding spatial consistency. Human audit is recommended.`;
-
     return {
       project_id: projectId,
       verification_id: `vr-${projectId}-${Date.now().toString(36)}`,
@@ -435,7 +477,7 @@ export class TrustScoreService {
       evidence,
       relationships,
       gemini_report: {
-        ai_summary: nvidiaAiSummary ?? defaultSummary,
+        ai_summary: aiResult?.text ?? defaultSummary,
         key_findings: [
           `Multi-modal Truth Score calculated at ${truthScore.toFixed(1)}/100`,
           `Decision category: ${decision}`,
@@ -454,14 +496,13 @@ export class TrustScoreService {
               "Review FIRMS thermal anomaly buffer",
             ]
           : ["Maintain standard continuous monitoring cycle"],
-        confidence_statement:
-          "Evaluated by CARBONX Multi-Modal Trust Engine with NVIDIA NIM (Llama 3.3 70B Instruct) synthesis.",
+        confidence_statement: `Evaluated by CARBONX Multi-Modal Trust Engine with ${aiResult?.model ?? "NVIDIA NIM (Llama 3.3 70B Instruct)"} synthesis.`,
       },
       human_audit_recommendation: auditRecommended,
       timestamp: new Date().toISOString(),
       pipeline_version: "0.2.0",
       scoring_version: "0.2.0",
-      model_version: "nvidia/llama-3.3-70b-instruct",
+      model_version: aiResult?.model ?? "nvidia/llama-3.3-70b-instruct",
     };
   }
 }
