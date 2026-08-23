@@ -3,17 +3,14 @@
 /**
  * SatelliteMap — reusable Leaflet-based satellite map component.
  *
- * Uses the Esri World Imagery tile service (publicly accessible, no API key)
- * with correct ESRI attribution preserved at all times.
+ * Uses Esri World Imagery (publicly accessible satellite tiles)
+ * with official attribution preserved.
  *
  * DATA HONESTY LABELS:
- *  - Project boundaries:  real source GeoJSON, labelled with provenance
- *  - FIRMS points:        real NASA FIRMS thermal anomaly points (OBSERVED)
- *  - Buffered zones:      CARBONX-derived from FIRMS buffer — labelled ESTIMATED
- *  - Intersections:       CARBONX-derived overlap polygon — labelled CARBONX CALCULATED
- *  - Centroids:           project centroid from registry data
- *
- * No imagery timestamps are invented. No satellite observations are fabricated.
+ *  - Project boundaries:  Real registry GeoJSON
+ *  - FIRMS points:        Real NASA FIRMS thermal anomaly points (OBSERVED)
+ *  - Buffered zones:      CARBONX-derived from FIRMS buffer (ESTIMATED)
+ *  - Intersections:       CARBONX calculated overlap polygon (CALCULATED)
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -44,17 +41,17 @@ export type IncidentMarker = {
 };
 
 export type SatelliteMapProps = {
-  /** [lng, lat] centroid — required to derive initial view */
+  /** [lng, lat] centroid */
   centroid: [number, number];
   /** Optional: zoom level */
   zoom?: number;
-  /** Optional: project boundary GeoJSON (Polygon/MultiPolygon or Feature) */
+  /** Optional: project boundary GeoJSON */
   boundary?: GeoJsonFeature | null;
   /** Optional: real NASA FIRMS hotspot points */
   firmsPoints?: FirmsPoint[];
   /** Optional: CARBONX-derived buffered impact zones (ESTIMATED) */
   bufferPolygons?: GeoJsonFeature[];
-  /** Optional: genuine intersection polygons (CARBONX CALCULATED) */
+  /** Optional: genuine intersection polygons (CALCULATED) */
   intersections?: GeoJsonFeature[];
   /** Optional: incident location markers */
   incidentMarkers?: IncidentMarker[];
@@ -64,11 +61,10 @@ export type SatelliteMapProps = {
   className?: string;
 };
 
-// Esri World Imagery tile URL — publicly accessible, no API key required.
 const ESRI_SATELLITE_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const ESRI_ATTRIBUTION =
-  "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community";
+  "&copy; Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN";
 
 type LayerVisibility = {
   boundary: boolean;
@@ -94,13 +90,11 @@ export function SatelliteMap({
     boundary: import("leaflet").Layer | null;
     firms: import("leaflet").LayerGroup | null;
     estimated: import("leaflet").LayerGroup | null;
-    intersections: import("leaflet").LayerGroup | null;
     incidents: import("leaflet").LayerGroup | null;
   }>({
     boundary: null,
     firms: null,
     estimated: null,
-    intersections: null,
     incidents: null,
   });
 
@@ -113,7 +107,7 @@ export function SatelliteMap({
   });
   const [mapReady, setMapReady] = useState(false);
 
-  // Bootstrap Leaflet — runs once client-side only
+  // Bootstrap Leaflet
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -123,7 +117,7 @@ export function SatelliteMap({
       try {
         L = await import("leaflet");
 
-        // Fix Leaflet default icon paths in Next.js
+        // Safe prototype clean
         delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -134,11 +128,13 @@ export function SatelliteMap({
         const map = L.map(mapContainerRef.current!, {
           center: [centroid[1], centroid[0]],
           zoom,
-          zoomControl: true,
+          zoomControl: false,
           attributionControl: true,
         });
 
-        // Satellite basemap — Esri World Imagery, attribution preserved
+        // Add custom minimal zoom control in top right
+        L.control.zoom({ position: "topright" }).addTo(map);
+
         L.tileLayer(ESRI_SATELLITE_URL, {
           attribution: ESRI_ATTRIBUTION,
           maxZoom: 19,
@@ -148,7 +144,7 @@ export function SatelliteMap({
         setMapReady(true);
       } catch (err) {
         console.error("[SatelliteMap] init failed", err);
-        setError("Map could not be initialised. A 2D summary is available below.");
+        setError("Geospatial map failed to initialize.");
       }
     };
 
@@ -160,11 +156,10 @@ export function SatelliteMap({
         mapRef.current = null;
       }
     };
-    // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update overlays whenever data or visibility changes
+  // Update overlays
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
 
@@ -186,23 +181,23 @@ export function SatelliteMap({
         try {
           const layer = L.geoJSON(geom as Parameters<typeof L.geoJSON>[0], {
             style: {
-              color: "#ed8e59",
-              weight: 2.5,
-              opacity: 0.9,
-              fillOpacity: 0.08,
-              fillColor: "#ed8e59",
+              color: "#ED8E59",
+              weight: 2,
+              opacity: 0.95,
+              fillOpacity: 0.06,
+              fillColor: "#ED8E59",
             },
-          }).bindTooltip("Project boundary · Source: registry GeoJSON", {
+          }).bindTooltip("Project Boundary · Registry Provenance", {
             sticky: true,
           });
           lr.boundary = layer;
           if (layers.boundary) layer.addTo(map);
         } catch {
-          // Non-fatal; continue
+          // non-fatal
         }
       }
 
-      // --- FIRMS hotspot points ---
+      // --- FIRMS points ---
       if (lr.firms) {
         map.removeLayer(lr.firms);
         lr.firms = null;
@@ -215,19 +210,21 @@ export function SatelliteMap({
               ? `${(pt.sourceConfidence * 100).toFixed(0)}%`
               : "n/a";
           const marker = L.circleMarker([pt.latitude, pt.longitude], {
-            radius: 7,
-            color: "#e56b78",
-            fillColor: "#e56b78",
-            fillOpacity: 0.75,
+            radius: 6,
+            color: "#E56B78",
+            fillColor: "#E56B78",
+            fillOpacity: 0.85,
             weight: 1.5,
           }).bindTooltip(
             [
-              `<strong>FIRMS thermal anomaly</strong>`,
-              `Source: ${pt.sourceName ?? "NASA FIRMS"} ${pt.sourceInstrument ?? ""}`,
-              `Observed: ${pt.observedAt ? new Date(pt.observedAt).toUTCString() : "unknown"}`,
-              `Confidence: ${conf}`,
-              `<em style="color:#e56b78">⚠ This is a point detection — NOT exact burned area</em>`,
-            ].join("<br>"),
+              `<div style="font-family:ui-monospace,monospace;font-size:10px;">`,
+              `<strong style="color:#ED8E59;">NASA FIRMS ANOMALY</strong> [OBSERVED]`,
+              `<div>Sensor: ${pt.sourceName ?? "FIRMS"} ${pt.sourceInstrument ?? ""}</div>`,
+              `<div>Time: ${pt.observedAt ? new Date(pt.observedAt).toISOString().replace("T", " ").slice(0, 19) : "n/a"} UTC</div>`,
+              `<div>Confidence: ${conf}</div>`,
+              `<div style="color:#E56B78;margin-top:2px;">*Point detection — not exact burned perimeter</div>`,
+              `</div>`,
+            ].join(""),
             { permanent: false },
           );
           group.addLayer(marker);
@@ -236,7 +233,7 @@ export function SatelliteMap({
         if (layers.firms) group.addTo(map);
       }
 
-      // --- Buffered ESTIMATED zones ---
+      // --- Buffered ESTIMATED zones + overlaps ---
       if (lr.estimated) {
         map.removeLayer(lr.estimated);
         lr.estimated = null;
@@ -252,20 +249,17 @@ export function SatelliteMap({
           try {
             L.geoJSON(geom as Parameters<typeof L.geoJSON>[0], {
               style: {
-                color: "#ed8e59",
+                color: "#ED8E59",
                 weight: 1.5,
-                dashArray: "6 4",
-                fillOpacity: 0.14,
-                fillColor: "#ed8e59",
+                dashArray: "4 4",
+                fillOpacity: 0.12,
+                fillColor: "#ED8E59",
               },
             })
-              .bindTooltip(
-                "ESTIMATED impact zone — buffered FIRMS point · CARBONX calculated",
-                { sticky: true },
-              )
+              .bindTooltip("Buffered Impact Zone [ESTIMATED]", { sticky: true })
               .addTo(group);
           } catch {
-            // Non-fatal
+            // non-fatal
           }
         });
         intersections.forEach((feat) => {
@@ -276,19 +270,16 @@ export function SatelliteMap({
           try {
             L.geoJSON(geom as Parameters<typeof L.geoJSON>[0], {
               style: {
-                color: "#e8bccb",
+                color: "#E8BCCB",
                 weight: 2,
-                fillOpacity: 0.22,
-                fillColor: "#e8bccb",
+                fillOpacity: 0.25,
+                fillColor: "#E8BCCB",
               },
             })
-              .bindTooltip(
-                "CARBONX CALCULATED overlap — genuine boundary intersection",
-                { sticky: true },
-              )
+              .bindTooltip("Boundary Overlap [CALCULATED]", { sticky: true })
               .addTo(group);
           } catch {
-            // Non-fatal
+            // non-fatal
           }
         });
         lr.estimated = group;
@@ -305,21 +296,19 @@ export function SatelliteMap({
         for (const inc of incidentMarkers) {
           const color =
             inc.risk === "CRITICAL"
-              ? "#e56b78"
+              ? "#E56B78"
               : inc.risk === "HIGH"
-                ? "#ed8e59"
-                : inc.risk === "MEDIUM"
-                  ? "#c3a8dc"
-                  : "#9fc6a8";
+                ? "#ED8E59"
+                : "#72B084";
           L.circleMarker([inc.latitude, inc.longitude], {
-            radius: 9,
+            radius: 8,
             color,
             fillColor: color,
             fillOpacity: 0.4,
             weight: 2,
           })
             .bindTooltip(
-              `Incident ${inc.id.slice(0, 8)} · ${inc.status} · risk: ${inc.risk ?? "UNASSESSED"}`,
+              `<div style="font-family:ui-monospace,monospace;font-size:10px;">Incident ${inc.id.slice(0, 8)} · ${inc.status} · Risk: ${inc.risk ?? "UNASSESSED"}</div>`,
               { permanent: false },
             )
             .addTo(group);
@@ -340,7 +329,6 @@ export function SatelliteMap({
     layers,
   ]);
 
-  // Fit-to-bounds helper
   const fitToBounds = async () => {
     if (!mapRef.current) return;
     const L = await import("leaflet");
@@ -374,17 +362,15 @@ export function SatelliteMap({
     }
   };
 
-  // Toggle layer visibility
   const toggleLayer = async (key: keyof LayerVisibility) => {
     if (!mapRef.current || !mapReady) return;
-    const L = await import("leaflet");
     const map = mapRef.current;
     const lr = layersRef.current;
 
     const newVal = !layers[key];
     setLayers((prev) => ({ ...prev, [key]: newVal }));
 
-    const layerMap: Record<keyof LayerVisibility, import("leaflet").Layer | null> = {
+    const layerMap = {
       boundary: lr.boundary,
       firms: lr.firms,
       estimated: lr.estimated,
@@ -397,19 +383,18 @@ export function SatelliteMap({
     } else {
       map.removeLayer(target);
     }
-    void L; // suppress unused import warning
   };
 
   if (error) {
     return (
       <div
-        className="cx-panel flex items-center justify-center rounded-xl p-6 text-center"
+        className="flex items-center justify-center rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-6 text-center text-xs text-[var(--cx-text-muted)]"
         style={{ height }}
       >
         <div>
-          <p className="text-sm text-cx-text-muted">{error}</p>
-          <p className="mt-2 text-xs" style={{ color: "var(--cx-text-muted)" }}>
-            Centroid: {centroid[1].toFixed(4)}, {centroid[0].toFixed(4)}
+          <p>{error}</p>
+          <p className="cx-mono mt-1 text-[11px]">
+            Centroid: {centroid[1].toFixed(4)}°N, {centroid[0].toFixed(4)}°E
           </p>
         </div>
       </div>
@@ -417,141 +402,66 @@ export function SatelliteMap({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
-      {/* Leaflet CSS — injected client-side */}
+    <div
+      className={`relative overflow-hidden rounded border border-[var(--cx-border)] ${className}`}
+      style={{ height }}
+    >
       <style>{`
         @import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
-        .leaflet-container { background: #1b1931; font-family: inherit; }
-        .leaflet-control-attribution { font-size: 9px !important; background: rgba(27,25,49,0.85) !important; color: #b7a5b7 !important; }
-        .leaflet-control-attribution a { color: var(--cx-accent) !important; }
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1b1931; color: #fff4ed; border: 1px solid rgba(232,188,203,0.16); }
-        .leaflet-tooltip { background: rgba(27,25,49,0.92); color: #fff4ed; border: 1px solid rgba(232,188,203,0.2); font-size: 11px; }
-        .leaflet-bar a { background: #1b1931 !important; color: #fff4ed !important; border-color: rgba(232,188,203,0.2) !important; }
-        .leaflet-bar a:hover { background: rgba(237,142,89,0.15) !important; }
+        .leaflet-container { background: #121025; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .leaflet-control-attribution { font-size: 9px !important; background: rgba(18,16,37,0.85) !important; color: #8E7E91 !important; border-top-left-radius: 4px; padding: 2px 6px !important; }
+        .leaflet-control-attribution a { color: #ED8E59 !important; text-decoration: none; }
+        .leaflet-tooltip { background: #1E1B38; color: #FFF4ED; border: 1px solid rgba(232,188,203,0.2); border-radius: 4px; font-size: 11px; padding: 6px 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .leaflet-bar { border: 1px solid rgba(232,188,203,0.15) !important; border-radius: 4px !important; overflow: hidden; box-shadow: none !important; }
+        .leaflet-bar a { background: #1E1B38 !important; color: #FFF4ED !important; border-bottom: 1px solid rgba(232,188,203,0.15) !important; width: 26px !important; height: 26px !important; line-height: 26px !important; font-size: 13px !important; }
+        .leaflet-bar a:hover { background: #281B34 !important; color: #ED8E59 !important; }
       `}</style>
 
-      {/* Map container */}
+      {/* Map surface */}
       <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-      {/* Controls overlay */}
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          right: 12,
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        {/* Fit-to-bounds button */}
+      {/* Top-right Fit button */}
+      <div className="absolute right-3 top-16 z-[1000]">
         <button
           type="button"
           onClick={() => void fitToBounds()}
-          title="Fit to bounds"
-          style={{
-            background: "rgba(27,25,49,0.88)",
-            border: "1px solid rgba(232,188,203,0.2)",
-            borderRadius: 8,
-            color: "#fff4ed",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            padding: "5px 10px",
-            textTransform: "uppercase",
-          }}
+          title="Fit view to boundary & events"
+          className="cx-mono rounded border border-[var(--cx-border)] bg-[rgba(30,27,56,0.92)] px-2 py-1 text-[10px] font-semibold tracking-wider text-[var(--cx-text)] backdrop-blur transition hover:border-[var(--cx-accent)] hover:text-[var(--cx-accent)]"
         >
-          Fit
+          FIT
         </button>
       </div>
 
-      {/* Layer toggles + legend — bottom-left */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 28,
-          left: 10,
-          zIndex: 1000,
-          background: "rgba(27,25,49,0.88)",
-          border: "1px solid rgba(232,188,203,0.18)",
-          borderRadius: 10,
-          padding: "8px 12px",
-          fontSize: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: 5,
-          minWidth: 160,
-        }}
-      >
-        <p
-          style={{
-            color: "var(--cx-accent)",
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            marginBottom: 2,
-          }}
-        >
-          Layers
-        </p>
+      {/* Bottom-left minimal layer bar */}
+      <div className="absolute bottom-6 left-3 z-[1000] flex flex-wrap items-center gap-2 rounded border border-[var(--cx-border)] bg-[rgba(18,16,37,0.9)] px-3 py-1.5 backdrop-blur">
+        <span className="cx-mono text-[9px] font-semibold uppercase tracking-wider text-[var(--cx-text-muted)] mr-1">
+          LAYERS
+        </span>
         {(
           [
-            { key: "boundary", label: "Project boundary", color: "#ed8e59" },
-            { key: "firms", label: "FIRMS hotspots", color: "#e56b78" },
-            { key: "estimated", label: "ESTIMATED impact", color: "#c3a8dc" },
-            { key: "incidents", label: "Incidents", color: "#9fc6a8" },
+            { key: "boundary", label: "Boundary", color: "#ED8E59" },
+            { key: "firms", label: "FIRMS", color: "#E56B78" },
+            { key: "estimated", label: "Estimated", color: "#ED8E59" },
+            { key: "incidents", label: "Incidents", color: "#72B084" },
           ] as const
         ).map(({ key, label, color }) => (
-          <label
+          <button
             key={key}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              cursor: "pointer",
-              color: layers[key] ? "#fff4ed" : "rgba(255,244,237,0.4)",
-            }}
+            type="button"
+            onClick={() => void toggleLayer(key)}
+            className={`cx-mono flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[9px] transition ${
+              layers[key]
+                ? "bg-[rgba(232,188,203,0.08)] text-[var(--cx-text)]"
+                : "opacity-40 text-[var(--cx-text-muted)]"
+            }`}
           >
             <span
-              style={{
-                display: "inline-block",
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                background: color,
-                opacity: layers[key] ? 1 : 0.3,
-                flexShrink: 0,
-              }}
-            />
-            <input
-              type="checkbox"
-              checked={layers[key]}
-              onChange={() => void toggleLayer(key)}
-              style={{ display: "none" }}
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: color }}
             />
             {label}
-          </label>
+          </button>
         ))}
-
-        {/* Data provenance legend */}
-        <hr
-          style={{
-            border: "none",
-            borderTop: "1px solid rgba(232,188,203,0.14)",
-            margin: "4px 0",
-          }}
-        />
-        <p style={{ color: "rgba(183,165,183,0.7)", lineHeight: 1.5 }}>
-          <span style={{ color: "#ed8e59" }}>■</span> Real source GeoJSON
-          <br />
-          <span style={{ color: "#e56b78" }}>●</span> NASA FIRMS (OBSERVED)
-          <br />
-          <span style={{ color: "#c3a8dc" }}>■</span> CARBONX ESTIMATED
-          <br />
-          <span style={{ color: "#e8bccb" }}>■</span> CARBONX calculated overlap
-        </p>
       </div>
     </div>
   );

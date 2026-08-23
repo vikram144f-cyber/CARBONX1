@@ -1,19 +1,43 @@
 import Link from "next/link";
+import { Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default function DocumentsPage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl items-center px-5 py-12 sm:px-8">
-      <div className="cx-panel w-full rounded-3xl p-7 sm:p-10">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-200/75">Evidence & documents</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">Document station is not yet available.</h1>
-        <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-400">Evidence labels, source metadata, and deterministic assessment context are available on incident records. Document upload and management are not implemented yet, so this station does not present placeholder records.</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/?mode=command" className="rounded-xl bg-cx-accent px-4 py-3 text-xs font-bold uppercase tracking-[0.15em] text-cx-bg shadow-[0_0_24px_rgba(237,142,89,0.16)]">Open Command Mode</Link>
-          <Link href="/" className="rounded-xl border border-white/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-slate-300 hover:bg-white/[0.06]">Return to World</Link>
+    <div className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
+      <Panel className="p-6 sm:p-8">
+        <div className="flex items-center gap-2">
+          <span className="cx-eyebrow">DOCUMENT STATION</span>
+          <span className="text-[var(--cx-border)]">/</span>
+          <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+            EVIDENCE REPOSITORY
+          </span>
         </div>
-      </div>
+
+        <h1 className="mt-3 text-xl font-medium tracking-tight text-white sm:text-2xl">
+          Document station is not yet available.
+        </h1>
+
+        <p className="mt-3 text-xs leading-relaxed text-[var(--cx-text-secondary)]">
+          Evidence labels, source metadata, and deterministic assessment context are available directly on individual incident dossiers. Document upload and PDF notarization workflows have not been activated in this build.
+        </p>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/?mode=command"
+            className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface-subtle)] px-3.5 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--cx-text)] transition hover:border-[var(--cx-accent)] hover:text-[var(--cx-accent)]"
+          >
+            ← Return to Portfolio
+          </Link>
+          <Link
+            href="/"
+            className="cx-mono rounded border border-[var(--cx-border-subtle)] px-3.5 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--cx-text-muted)] hover:border-[var(--cx-border)] hover:text-[var(--cx-text)]"
+          >
+            3D Operations
+          </Link>
+        </div>
+      </Panel>
     </div>
   );
 }

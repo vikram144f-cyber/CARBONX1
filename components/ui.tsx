@@ -11,69 +11,173 @@ export function MetricCard({
   detail?: string;
   tone?: "neutral" | "green" | "amber" | "red" | "blue";
 }) {
-  const tones = {
-    neutral: "border-cx-highlight/15 bg-cx-bg/55",
-    green: "border-cx-accent/25 bg-cx-accent/10",
-    amber: "border-amber-300/20 bg-amber-300/[0.06]",
-    red: "border-red-300/20 bg-red-300/[0.06]",
-    blue: "border-cx-highlight/20 bg-cx-purple/35",
+  const toneIndicators = {
+    neutral: "bg-cx-muted/40",
+    green: "bg-[var(--cx-success)]",
+    amber: "bg-[var(--cx-warning)]",
+    red: "bg-[var(--cx-critical)]",
+    blue: "bg-[var(--cx-info)]",
   };
+
   return (
-    <div className={`rounded-2xl border p-5 ${tones[tone]}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</p>
-      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+    <div className="flex flex-col justify-between py-1">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className={`h-1.5 w-1.5 rounded-full ${toneIndicators[tone]}`} />
+          <span className="cx-label text-[10px] text-cx-muted">{label}</span>
+        </div>
+        <p className="cx-mono mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          {value}
+        </p>
+      </div>
+      {detail ? (
+        <p className="mt-1 text-[11px] leading-4 text-cx-muted">{detail}</p>
+      ) : null}
     </div>
   );
 }
 
-export function Panel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
-  return <section id={id} className={`cx-panel rounded-2xl ${className}`}>{children}</section>;
+export function Panel({
+  children,
+  className = "",
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section
+      id={id}
+      className={`cx-surface rounded-lg overflow-hidden border border-[var(--cx-border)] ${className}`}
+    >
+      {children}
+    </section>
+  );
 }
 
-export function PanelHeading({ eyebrow, title, detail }: { eyebrow?: string; title: string; detail?: string }) {
+export function PanelHeading({
+  eyebrow,
+  title,
+  detail,
+  action,
+}: {
+  eyebrow?: string;
+  title: string;
+  detail?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-2 border-b border-white/10 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+    <div className="flex flex-col gap-2 border-b border-[var(--cx-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div>
-        {eyebrow ? <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/70">{eyebrow}</p> : null}
-        <h2 className="mt-1 text-base font-semibold text-white">{title}</h2>
+        {eyebrow ? (
+          <p className="cx-eyebrow">{eyebrow}</p>
+        ) : null}
+        <h2 className="mt-0.5 text-sm font-semibold tracking-wide text-[var(--cx-text)]">
+          {title}
+        </h2>
       </div>
-      {detail ? <p className="text-xs text-slate-500">{detail}</p> : null}
+      <div className="flex items-center gap-3">
+        {detail ? (
+          <span className="text-xs text-[var(--cx-text-muted)]">{detail}</span>
+        ) : null}
+        {action}
+      </div>
     </div>
   );
 }
 
 export function RiskBadge({ risk }: { risk: string | null }) {
   const styles: Record<string, string> = {
-    LOW: "border-emerald-300/25 bg-emerald-300/10 text-emerald-200",
-    MEDIUM: "border-amber-300/25 bg-amber-300/10 text-amber-200",
-    HIGH: "border-orange-300/25 bg-orange-300/10 text-orange-200",
-    CRITICAL: "border-red-300/25 bg-red-300/10 text-red-200",
+    LOW: "border-[rgba(114,176,132,0.3)] bg-[rgba(114,176,132,0.1)] text-[#9fc6a8]",
+    MEDIUM: "border-[rgba(237,142,89,0.3)] bg-[rgba(237,142,89,0.1)] text-[#ed8e59]",
+    HIGH: "border-[rgba(245,173,122,0.35)] bg-[rgba(245,173,122,0.1)] text-[#f5ad7a]",
+    CRITICAL: "border-[rgba(229,107,120,0.35)] bg-[rgba(229,107,120,0.1)] text-[#e56b78]",
   };
   const label = risk ?? "UNASSESSED";
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${styles[label] ?? "border-slate-500/30 bg-slate-500/10 text-slate-400"}`}>{label}</span>;
+  return (
+    <span
+      className={`cx-mono inline-flex items-center rounded px-2 py-0.5 text-[9px] font-semibold tracking-wider border ${
+        styles[label] ?? "border-[var(--cx-border)] bg-transparent text-[var(--cx-text-muted)]"
+      }`}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function EvidenceBadge({ label }: { label: string }) {
   const styles: Record<string, string> = {
-    OBSERVED: "bg-blue-300/10 text-blue-200 ring-blue-300/20",
-    ESTIMATED: "bg-amber-300/10 text-amber-200 ring-amber-300/20",
-    MODELED: "bg-violet-300/10 text-violet-200 ring-violet-300/20",
-    INFERRED: "bg-slate-300/10 text-slate-200 ring-slate-300/20",
+    OBSERVED: "border-blue-400/30 bg-blue-500/10 text-blue-200",
+    ESTIMATED: "border-[rgba(237,142,89,0.3)] bg-[rgba(237,142,89,0.1)] text-[#ed8e59]",
+    MODELED: "border-purple-400/30 bg-purple-500/10 text-purple-200",
+    INFERRED: "border-slate-500/30 bg-slate-500/10 text-slate-300",
   };
-  return <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ring-1 ${styles[label] ?? styles.INFERRED}`}>{label}</span>;
+  return (
+    <span
+      className={`cx-mono inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-wider ${
+        styles[label] ?? styles.INFERRED
+      }`}
+    >
+      {label}
+    </span>
+  );
 }
 
-export function LoadingState({ label = "Loading live portfolio data" }: { label?: string }) {
-  return <div className="flex min-h-[50vh] items-center justify-center"><div className="text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-emerald-300/20 border-t-emerald-300" /><p className="mt-4 text-sm text-slate-400">{label}</p></div></div>;
+export function LoadingState({
+  label = "Loading live data",
+}: {
+  label?: string;
+}) {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center p-6">
+      <div className="flex items-center gap-3 text-xs text-[var(--cx-text-muted)]">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--cx-accent)]" />
+        <span className="cx-mono tracking-wider uppercase text-[11px]">{label}…</span>
+      </div>
+    </div>
+  );
 }
 
-export function EmptyState({ title, detail }: { title: string; detail: string }) {
-  return <div className="flex min-h-40 items-center justify-center px-6 py-10 text-center"><div><div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-600/40 text-slate-500">—</div><p className="mt-4 text-sm font-medium text-slate-300">{title}</p><p className="mt-2 max-w-sm text-xs leading-5 text-slate-500">{detail}</p></div></div>;
+export function EmptyState({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex min-h-32 items-center justify-center px-6 py-8 text-center">
+      <div className="max-w-md">
+        <p className="text-xs font-medium uppercase tracking-wider text-[var(--cx-text-secondary)]">
+          {title}
+        </p>
+        <p className="mt-1.5 text-xs leading-5 text-[var(--cx-text-muted)]">{detail}</p>
+      </div>
+    </div>
+  );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <div className="flex min-h-40 items-center justify-center px-6 py-10 text-center"><div><p className="text-sm font-medium text-red-200">{message}</p><button onClick={onRetry} className="mt-4 rounded-lg border border-red-300/20 bg-red-300/10 px-3 py-2 text-xs font-semibold text-red-100 transition hover:bg-red-300/20">Retry read</button></div></div>;
+export function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex min-h-32 items-center justify-center px-6 py-8 text-center">
+      <div className="max-w-md">
+        <p className="text-xs font-medium text-[var(--cx-critical)]">{message}</p>
+        <button
+          onClick={onRetry}
+          className="cx-mono mt-3 rounded border border-[var(--cx-border)] bg-[var(--cx-surface-subtle)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--cx-text)] transition hover:border-[var(--cx-accent)]"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function formatQuantity(value: number) {
@@ -82,7 +186,11 @@ export function formatQuantity(value: number) {
 
 export function formatCurrency(value: number | null, currency = "USD") {
   if (value === null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 export function formatPercent(value: number | null) {
@@ -92,5 +200,8 @@ export function formatPercent(value: number | null) {
 
 export function formatDate(value: string | null) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }

@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchPortfolioData } from "../lib/client/portfolio";
-
 import {
   EmptyState,
   ErrorState,
@@ -13,20 +12,28 @@ import {
   formatQuantity,
   formatDate,
   LoadingState,
-  MetricCard,
   Panel,
-  PanelHeading,
   RiskBadge,
 } from "./ui";
 import type { PortfolioResponse } from "../lib/validations/portfolio";
 import type { SatelliteMapProps } from "./satellite-map";
 
-// Dynamically import satellite map with SSR disabled
 const SatelliteMap = dynamic(
   () => import("./satellite-map").then((m) => m.SatelliteMap),
-  { ssr: false, loading: () => <div style={{ height: 340, display: "flex", alignItems: "center", justifyContent: "center" }} className="cx-panel rounded-xl text-xs">Loading satellite view…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex items-center justify-center rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] text-xs text-[var(--cx-text-muted)]"
+        style={{ height: 420 }}
+      >
+        <span className="cx-mono uppercase tracking-wider text-[11px]">
+          Loading geospatial overview…
+        </span>
+      </div>
+    ),
+  },
 ) as React.ComponentType<SatelliteMapProps>;
-
 
 type SortKey = "name" | "totalHeldQuantity" | "activeIncidentCount" | "risk";
 
@@ -39,10 +46,16 @@ type IngestionStats = {
   reason?: string;
 };
 
-// Romania centroid (Rotunda Forest — VCS2386) used as the default overview center
-const OVERVIEW_CENTROID: [number, number] = [22.821, 45.392];
+// Default centroid for overview map (Rotunda Forest & Balkan Region)
+const OVERVIEW_CENTROID: [number, number] = [21.5, 43.0];
 
-export function PortfolioDashboard({ focus, initialData }: { focus?: string; initialData?: PortfolioResponse | null }) {
+export function PortfolioDashboard({
+  focus,
+  initialData,
+}: {
+  focus?: string;
+  initialData?: PortfolioResponse | null;
+}) {
   const [data, setData] = useState<PortfolioResponse | null>(initialData ?? null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!initialData);
@@ -67,12 +80,14 @@ export function PortfolioDashboard({ focus, initialData }: { focus?: string; ini
   useEffect(() => {
     if (!initialData) void load();
   }, [initialData, load]);
+
   useEffect(() => {
     if (!focus || loading) return;
-    document.getElementById(focus === "projects" ? "project-archive" : "incident-command-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document
+      .getElementById(focus === "projects" ? "project-monitoring-grid" : "incident-attention-queue")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [focus, loading]);
 
-  // Trigger the real FIRMS ingestion pipeline server-side
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setIngestionStats(null);
@@ -81,15 +96,19 @@ export function PortfolioDashboard({ focus, initialData }: { focus?: string; ini
         method: "POST",
         headers: { authorization: "Bearer carbonx-dev-refresh" },
       });
-      const body = (await response.json()) as { success?: boolean; data?: IngestionStats };
-      if (!body.success || !body.data) throw new Error("Ingestion pipeline returned an error");
+      const body = (await response.json()) as {
+        success?: boolean;
+        data?: IngestionStats;
+      };
+      if (!body.success || !body.data) {
+        throw new Error("Ingestion pipeline returned an error");
+      }
       setIngestionStats(body.data);
-      // Re-fetch portfolio so new incidents appear
       await load();
     } catch (err) {
       setIngestionStats({
         status: "FAILED",
-        reason: err instanceof Error ? err.message : "Unknown error",
+        reason: err instanceof Error ? err.message : "Sync failed",
       });
     } finally {
       setRefreshing(false);
@@ -99,154 +118,358 @@ export function PortfolioDashboard({ focus, initialData }: { focus?: string; ini
   const projects = useMemo(() => {
     if (!data) return [];
     const queryValue = query.trim().toLowerCase();
-    const priority: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const priority: Record<string, number> = {
+      CRITICAL: 4,
+      HIGH: 3,
+      MEDIUM: 2,
+      LOW: 1,
+    };
     return data.projects
-      .filter((project) => riskFilter === "ALL" || (project.risk ?? "UNASSESSED") === riskFilter)
-      .filter((project) => !queryValue || `${project.name} ${project.registryId ?? ""} ${project.countryCode ?? ""}`.toLowerCase().includes(queryValue))
+      .filter(
+        (project) =>
+          riskFilter === "ALL" || (project.risk ?? "UNASSESSED") === riskFilter,
+      )
+      .filter(
+        (project) =>
+          !queryValue ||
+          `${project.name} ${project.registryId ?? ""} ${project.countryCode ?? ""}`
+            .toLowerCase()
+            .includes(queryValue),
+      )
       .sort((left, right) => {
         if (sortKey === "name") return left.name.localeCompare(right.name);
-        if (sortKey === "risk") return (priority[right.risk ?? ""] ?? 0) - (priority[left.risk ?? ""] ?? 0);
+        if (sortKey === "risk")
+          return (
+            (priority[right.risk ?? ""] ?? 0) - (priority[left.risk ?? ""] ?? 0)
+          );
         return right[sortKey] - left[sortKey];
       });
   }, [data, query, riskFilter, sortKey]);
 
-  if (loading) return <LoadingState />;
-  if (error || !data) return <ErrorState message={error ?? "Portfolio data unavailable."} onRetry={() => void load()} />;
+  if (loading) return <LoadingState label="Synchronizing portfolio state" />;
+  if (error || !data)
+    return (
+      <ErrorState
+        message={error ?? "Portfolio telemetry unavailable."}
+        onRetry={() => void load()}
+      />
+    );
 
   const distribution = data.riskDistribution;
-  const maxRiskCount = Math.max(1, ...Object.values(distribution));
-
-  // Build incident markers for the overview map (use project centroids as proxies)
-  const incidentMarkers = data.activeIncidents.flatMap((incident) => {
-    const project = data.projects.find((p) => p.id === incident.projectId);
-    // We don't have centroid in portfolio summary; skip if not available
-    return [];
-    void project; // type-safe no-op
-  });
 
   return (
-    <div className="mx-auto max-w-[1600px] px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
-      <header className="flex flex-col gap-6 border-b border-white/10 pb-8 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Live portfolio read</div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">{data.portfolio?.name ?? "Portfolio command center"}</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">A decision-support view of carbon-credit exposure, environmental alerts, and evidence quality. Numeric values below are read from deterministic backend records.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" /> Supabase connected through server APIs
-          <Link href="/" className="rounded-full border border-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200 hover:bg-white/[0.05]">3D World</Link>
+    <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 sm:py-8">
+      {/* ── Editorial Header & Station Title ────────────────────────────── */}
+      <header className="border-b border-[var(--cx-border)] pb-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="cx-eyebrow">PORTFOLIO MONITORING STATION</span>
+              <span className="text-[var(--cx-border)]">/</span>
+              <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                {data.portfolio?.name ?? "Global Carbon Assets"}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-medium tracking-tight text-white sm:text-3xl">
+              Geospatial Carbon Intelligence
+            </h1>
+          </div>
+
+          {/* Inline Telemetry Bar */}
+          <div className="flex flex-wrap items-center gap-6 border-t border-[var(--cx-border-subtle)] pt-3 lg:border-t-0 lg:pt-0">
+            <div>
+              <span className="cx-label block text-[9px]">Monitored Scope</span>
+              <span className="cx-mono text-sm font-semibold text-white">
+                {formatQuantity(data.summary.totalProjects)} Projects
+              </span>
+            </div>
+            <div>
+              <span className="cx-label block text-[9px]">Held Volume</span>
+              <span className="cx-mono text-sm font-semibold text-white">
+                {formatQuantity(data.summary.totalHeldQuantity)} Credits
+              </span>
+            </div>
+            <div>
+              <span className="cx-label block text-[9px]">Active Incidents</span>
+              <span
+                className={`cx-mono text-sm font-semibold ${
+                  data.summary.activeIncidents > 0
+                    ? "text-[var(--cx-critical)]"
+                    : "text-[var(--cx-success)]"
+                }`}
+              >
+                {data.summary.activeIncidents} Active
+              </span>
+            </div>
+            <div>
+              <span className="cx-label block text-[9px]">Financial Exposure</span>
+              <span className="cx-mono text-sm font-semibold text-[var(--cx-warning)]">
+                {formatCurrency(data.summary.totalFinancialExposureEst)}
+              </span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Projects monitored" value={formatQuantity(data.summary.totalProjects)} detail="Current portfolio scope" tone="green" />
-        <MetricCard label="Held credits" value={formatQuantity(data.summary.totalHeldQuantity)} detail={`${formatQuantity(data.summary.holdingCount)} active holding records`} tone="blue" />
-        <MetricCard label="Active incidents" value={formatQuantity(data.summary.activeIncidents)} detail="Unresolved incident records" tone={data.summary.activeIncidents ? "red" : "green"} />
-        <MetricCard label="Financial exposure est." value={formatCurrency(data.summary.totalFinancialExposureEst)} detail="Assessment-derived; not a market price" tone={data.summary.totalFinancialExposureEst ? "amber" : "neutral"} />
-      </section>
+      {/* ── PRIMARY HERO: Large Geospatial Overview ─────────────────────── */}
+      <section className="mt-6">
+        <div className="relative">
+          {/* Top Bar for Map context */}
+          <div className="flex items-center justify-between border-x border-t border-[var(--cx-border)] bg-[var(--cx-surface)] px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--cx-accent)] animate-pulse" />
+              <span className="cx-mono text-[10px] uppercase tracking-wider text-[var(--cx-text)]">
+                Live Satellite Telemetry · Romania & Albania Centroids
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-[var(--cx-text-muted)]">
+              <span className="cx-mono hidden sm:inline">
+                BASAL TILES: ESRI WORLD IMAGERY
+              </span>
+            </div>
+          </div>
 
-      {/* ── Satellite overview map ──────────────────────────────────────── */}
-      <Panel className="mt-7 overflow-hidden">
-        <PanelHeading
-          eyebrow="Geospatial overview"
-          title="Monitored project locations"
-          detail="Satellite basemap · Esri World Imagery · real project centroids"
-        />
-        <div className="px-5 pb-5 sm:px-6">
           <SatelliteMap
             centroid={OVERVIEW_CENTROID}
             zoom={6}
-            height="340px"
-            incidentMarkers={incidentMarkers}
+            height="460px"
+            className="rounded-t-none"
           />
-          <p className="mt-3 text-[10px] text-slate-600">
-            Satellite imagery: Esri World Imagery — Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP.
-            Project boundaries visible on individual project pages. FIRMS observations shown after refresh.
-          </p>
-        </div>
-      </Panel>
 
-      {/* ── Risk distribution + active incidents ───────────────────────── */}
-      <section className="mt-7 grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
-        <Panel id="incident-command-center">
-          <PanelHeading eyebrow="Exposure posture" title="Risk distribution" detail="Active incidents by integrity risk" />
-          <div className="space-y-5 px-5 py-6 sm:px-6">
-            {(["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNASSESSED"] as const).map((risk) => (
-              <div key={risk} className="grid grid-cols-[90px_1fr_34px] items-center gap-3 text-xs">
-                <span className="text-slate-400">{risk}</span>
-                <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className={`h-full rounded-full ${risk === "CRITICAL" ? "bg-red-300" : risk === "HIGH" ? "bg-orange-300" : risk === "MEDIUM" ? "bg-amber-300" : risk === "LOW" ? "bg-emerald-300" : "bg-slate-500"}`} style={{ width: `${(distribution[risk] / maxRiskCount) * 100}%` }} /></div>
-                <span className="text-right font-mono text-slate-300">{distribution[risk]}</span>
-              </div>
-            ))}
-          </div>
-        </Panel>
-        <Panel>
-          <PanelHeading eyebrow="Attention queue" title="Active incidents" detail="Open investigation records" />
-          {data.activeIncidents.length === 0 ? <EmptyState title="No active incidents" detail="No unresolved incident has been persisted for this portfolio. New valid overlaps will appear here after event processing." /> : (
-            <div className="divide-y divide-white/10">
-              {data.activeIncidents.slice(0, 5).map((incident) => (
-                <Link href={`/incidents/${incident.id}`} key={incident.id} className="block px-5 py-4 transition hover:bg-white/[0.04] sm:px-6">
-                  <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-slate-200">{incident.projectName}</p><p className="mt-1 text-xs text-slate-500">{incident.eventType} · {formatDate(incident.createdAt)}</p></div><RiskBadge risk={incident.integrityRisk} /></div>
-                </Link>
-              ))}
+          {/* Integrated Data Freshness & Ingestion Control Strip */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-x border-b border-[var(--cx-border)] bg-[var(--cx-surface-inset)] px-4 py-2.5 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                DATA SYNC:
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleRefresh()}
+                disabled={refreshing}
+                className="cx-mono inline-flex items-center gap-1.5 rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--cx-text)] transition hover:border-[var(--cx-accent)] hover:text-[var(--cx-accent)] disabled:cursor-wait disabled:opacity-50"
+              >
+                {refreshing ? (
+                  <span className="h-2 w-2 animate-spin rounded-full border border-[var(--cx-accent)] border-t-transparent" />
+                ) : (
+                  <span>↻</span>
+                )}
+                {refreshing ? "Querying FIRMS…" : "Refresh Environmental Data"}
+              </button>
+
+              {ingestionStats ? (
+                <span className="cx-mono text-[10px]">
+                  {ingestionStats.status === "COMPLETED" ? (
+                    <span className="text-[var(--cx-success)]">
+                      ✓ {ingestionStats.fetched} observations fetched (
+                      {ingestionStats.inserted} new persisted,{" "}
+                      {ingestionStats.skippedDuplicates} duplicate skipped)
+                    </span>
+                  ) : ingestionStats.status === "SKIPPED" ? (
+                    <span className="text-[var(--cx-warning)]">
+                      No candidate project boundaries active
+                    </span>
+                  ) : (
+                    <span className="text-[var(--cx-critical)]">
+                      Sync note: {ingestionStats.reason}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                  NASA VIIRS/MODIS active
+                </span>
+              )}
             </div>
-          )}
-        </Panel>
+
+            <div className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+              DETERMINISTIC BUFFER: 5.0 KM · TURF.JS RISK MATRIX
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* ── FIRMS Refresh action ────────────────────────────────────────── */}
-      <Panel className="mt-7">
-        <PanelHeading
-          eyebrow="Environmental data · dev/demo"
-          title="Refresh Environmental Data"
-          detail="Calls the real NASA FIRMS pipeline server-side"
-        />
-        <div className="px-5 py-6 sm:px-6">
-          <p className="max-w-2xl text-sm leading-6 text-slate-400">
-            Fetches live FIRMS VIIRS/SNPP observations for the seeded project centroids (Romania, Albania), deduplicates them, persists new events, and runs the Epic 03 geospatial risk engine. Incidents and assessments are only created for <strong className="text-white">genuine boundary overlaps</strong> — never fabricated.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => void handleRefresh()}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200 transition hover:border-emerald-300/50 hover:bg-emerald-300/20 disabled:cursor-wait disabled:opacity-60"
-            >
-              {refreshing ? <span className="h-3 w-3 animate-spin rounded-full border border-emerald-200/30 border-t-emerald-200" /> : null}
-              {refreshing ? "Ingesting…" : "Refresh Environmental Data"}
-            </button>
-            {ingestionStats ? (
-              <div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-xs">
-                {ingestionStats.status === "COMPLETED" ? (
-                  <span className="text-emerald-200">
-                    ✓ {ingestionStats.fetched} fetched · {ingestionStats.inserted} new · {ingestionStats.skippedDuplicates} skipped · {ingestionStats.rejected} rejected
-                  </span>
-                ) : ingestionStats.status === "SKIPPED" ? (
-                  <span className="text-amber-200">Skipped — no active projects with boundaries found</span>
-                ) : (
-                  <span className="text-red-200">Failed: {ingestionStats.reason}</span>
-                )}
-              </div>
-            ) : null}
-          </div>
-          <p className="mt-4 text-[10px] text-slate-600">
-            NASA FIRMS MAP_KEY is server-side only. No credentials are sent to the browser. Duplicate detections are skipped via SHA-256 fingerprint. FIRMS points are not burned-area measurements — they are thermal anomaly detections with ESTIMATED impact zones.
-          </p>
-        </div>
-      </Panel>
+      {/* ── SECONDARY AREA: Asymmetric Layout ───────────────────────────── */}
+      <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        {/* Main Column: Monitored Projects Table */}
+        <div id="project-monitoring-grid">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--cx-border)] pb-3">
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide text-white">
+                Monitored Project Directory
+              </h2>
+              <p className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                {projects.length} of {data.projects.length} project boundaries registered
+              </p>
+            </div>
 
-      {/* ── Project archive table ───────────────────────────────────────── */}
-      <Panel id="project-archive" className="mt-7 overflow-hidden">
-        <PanelHeading eyebrow="Portfolio inventory" title="Projects" detail={`${projects.length} of ${data.projects.length} projects shown`} />
-        <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project, registry, country" className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/40 sm:max-w-sm" />
-          <div className="flex flex-wrap gap-2">
-            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} className="rounded-lg border border-white/10 bg-[#0b1915] px-3 py-2.5 text-xs text-slate-300 outline-none"><option value="ALL">All risk states</option><option value="UNASSESSED">Unassessed</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select>
-            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)} className="rounded-lg border border-white/10 bg-[#0b1915] px-3 py-2.5 text-xs text-slate-300 outline-none"><option value="activeIncidentCount">Sort: alerts</option><option value="risk">Sort: risk</option><option value="totalHeldQuantity">Sort: holdings</option><option value="name">Sort: name</option></select>
+            {/* Filter Bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search registry, country, name…"
+                className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] px-3 py-1.5 text-xs text-[var(--cx-text)] outline-none placeholder:text-[var(--cx-text-muted)] focus:border-[var(--cx-accent)] sm:w-56"
+              />
+              <select
+                value={riskFilter}
+                onChange={(e) => setRiskFilter(e.target.value)}
+                className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-2.5 py-1.5 text-xs text-[var(--cx-text)] outline-none"
+              >
+                <option value="ALL">All Risk Levels</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="UNASSESSED">Unassessed</option>
+              </select>
+            </div>
           </div>
+
+          {projects.length === 0 ? (
+            <EmptyState
+              title="No matching projects"
+              detail="No registered carbon project matches the current filter parameters."
+            />
+          ) : (
+            <div className="mt-3 overflow-x-auto rounded border border-[var(--cx-border)] bg-[var(--cx-surface)]">
+              <table className="cx-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Region / Registry</th>
+                    <th>Boundary Quality</th>
+                    <th>Held Quantity</th>
+                    <th>Alerts</th>
+                    <th>Risk State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((project) => (
+                    <tr key={project.id}>
+                      <td>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="font-medium text-[var(--cx-text)] transition hover:text-[var(--cx-accent)]"
+                        >
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td className="cx-mono text-xs">
+                        {project.countryCode ?? "—"} ·{" "}
+                        <span className="text-[var(--cx-text-muted)]">
+                          {project.registryId ?? "Unregistered"}
+                        </span>
+                      </td>
+                      <td className="cx-mono text-xs">
+                        {project.boundaryQuality ?? "Unknown"}{" "}
+                        <span className="text-[var(--cx-text-muted)]">
+                          {project.areaHa
+                            ? `(${formatQuantity(project.areaHa)} ha)`
+                            : ""}
+                        </span>
+                      </td>
+                      <td className="cx-mono text-xs text-right font-medium">
+                        {formatQuantity(project.totalHeldQuantity)}
+                      </td>
+                      <td className="cx-mono text-xs text-center">
+                        {project.activeIncidentCount > 0 ? (
+                          <span className="font-semibold text-[var(--cx-critical)]">
+                            {project.activeIncidentCount}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--cx-text-muted)]">0</span>
+                        )}
+                      </td>
+                      <td>
+                        <RiskBadge risk={project.risk} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        {projects.length === 0 ? <EmptyState title="No projects match this view" detail="Clear the search or risk filter to inspect the portfolio inventory." /> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead className="bg-white/[0.025] text-[10px] uppercase tracking-[0.16em] text-slate-600"><tr><th className="px-5 py-3 font-semibold">Project</th><th className="px-5 py-3 font-semibold">Boundary</th><th className="px-5 py-3 font-semibold">Held credits</th><th className="px-5 py-3 font-semibold">Alerts</th><th className="px-5 py-3 font-semibold">Risk</th><th className="px-5 py-3 font-semibold">State</th></tr></thead><tbody className="divide-y divide-white/10">{projects.map((project) => <tr key={project.id} className="transition hover:bg-white/[0.03]"><td className="px-5 py-4"><Link href={`/projects/${project.id}`} className="group"><span className="block text-sm font-medium text-slate-200 group-hover:text-emerald-200">{project.name}</span><span className="mt-1 block text-xs text-slate-500">{project.registryId ?? "No registry reference"} {project.countryCode ? `· ${project.countryCode}` : ""}</span></Link></td><td className="px-5 py-4"><span className="text-xs text-slate-300">{project.boundaryQuality ?? "Unknown"}</span><span className="mt-1 block text-[11px] text-slate-600">{project.areaHa ? `${formatQuantity(project.areaHa)} ha` : "Area unavailable"}</span></td><td className="px-5 py-4 font-mono text-xs text-slate-300">{formatQuantity(project.totalHeldQuantity)}</td><td className="px-5 py-4 font-mono text-xs text-slate-300">{project.activeIncidentCount}</td><td className="px-5 py-4"><RiskBadge risk={project.risk} /></td><td className="px-5 py-4"><span className={`text-xs font-medium ${project.projectState === "CRITICAL" ? "text-red-200" : project.projectState === "WATCH" ? "text-amber-200" : project.projectState === "HEALTHY" ? "text-emerald-200" : "text-slate-400"}`}>{project.projectState}</span></td></tr>)}</tbody></table></div>}
-      </Panel>
+
+        {/* Side Column: Risk Posture & Incident Attention Queue */}
+        <div id="incident-attention-queue" className="space-y-6">
+          {/* Risk Distribution Breakdown */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-4 py-3">
+              <span className="cx-eyebrow">INTEGRITY POSTURE</span>
+              <h3 className="text-xs font-semibold text-white">Risk Distribution</h3>
+            </div>
+            <div className="space-y-2.5 p-4 text-xs">
+              {(["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNASSESSED"] as const).map(
+                (risk) => (
+                  <div
+                    key={risk}
+                    className="flex items-center justify-between cx-mono text-[11px]"
+                  >
+                    <span className="flex items-center gap-2 text-[var(--cx-text-muted)]">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          risk === "CRITICAL"
+                            ? "bg-[var(--cx-critical)]"
+                            : risk === "HIGH"
+                              ? "bg-[var(--cx-warning)]"
+                              : risk === "MEDIUM"
+                                ? "bg-[var(--cx-info)]"
+                                : risk === "LOW"
+                                  ? "bg-[var(--cx-success)]"
+                                  : "bg-[var(--cx-text-muted)]"
+                        }`}
+                      />
+                      {risk}
+                    </span>
+                    <span className="font-semibold text-[var(--cx-text)]">
+                      {distribution[risk]}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
+          </Panel>
+
+          {/* Active Incidents List */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-4 py-3">
+              <span className="cx-eyebrow">ATTENTION QUEUE</span>
+              <h3 className="text-xs font-semibold text-white">
+                Active Incident Records
+              </h3>
+            </div>
+            {data.activeIncidents.length === 0 ? (
+              <EmptyState
+                title="No active incidents"
+                detail="No unresolved environmental alerts exist for monitored projects."
+              />
+            ) : (
+              <div className="divide-y divide-[var(--cx-border-subtle)]">
+                {data.activeIncidents.slice(0, 5).map((incident) => (
+                  <Link
+                    href={`/incidents/${incident.id}`}
+                    key={incident.id}
+                    className="block p-4 transition hover:bg-[var(--cx-surface-subtle)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-[var(--cx-text)]">
+                          {incident.projectName}
+                        </p>
+                        <p className="cx-mono mt-1 text-[10px] text-[var(--cx-text-muted)]">
+                          {incident.eventType} · {formatDate(incident.createdAt)}
+                        </p>
+                      </div>
+                      <RiskBadge risk={incident.integrityRisk} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      </section>
     </div>
   );
 }

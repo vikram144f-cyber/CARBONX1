@@ -8,14 +8,33 @@ import type { IncidentResponse } from "../lib/validations/incidents";
 import { incidentResponseSchema } from "../lib/validations/incidents";
 import { auditActionResponseSchema } from "../lib/validations/audit";
 import { mapIncidentToSceneState } from "../features/investigation-3d/scene-state";
-import { EvidenceBadge, EmptyState, ErrorState, formatCurrency, formatDate, formatPercent, LoadingState, MetricCard, Panel, PanelHeading, RiskBadge } from "./ui";
+import {
+  EmptyState,
+  ErrorState,
+  EvidenceBadge,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  LoadingState,
+  Panel,
+  RiskBadge,
+} from "./ui";
 import type { FirmsPoint, GeoJsonFeature, SatelliteMapProps } from "./satellite-map";
 
 const Investigation3DOverlay = dynamic(
-  () => import("../features/investigation-3d/overlay").then((module) => module.Investigation3DOverlay),
+  () =>
+    import("../features/investigation-3d/overlay").then(
+      (module) => module.Investigation3DOverlay,
+    ),
   {
     ssr: false,
-    loading: () => <div className="fixed inset-0 z-50 grid place-items-center bg-[#04100c] text-sm text-slate-400">Loading investigation canvas…</div>,
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070514] text-xs text-slate-400">
+        <span className="cx-mono uppercase tracking-wider">
+          Initializing 3D spatial canvas…
+        </span>
+      </div>
+    ),
   },
 );
 
@@ -24,14 +43,25 @@ const SatelliteMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="cx-panel flex items-center justify-center rounded-xl text-xs" style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        Loading satellite view…
+      <div
+        className="flex items-center justify-center rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] text-xs text-[var(--cx-text-muted)]"
+        style={{ height: 380 }}
+      >
+        <span className="cx-mono uppercase tracking-wider text-[11px]">
+          Loading incident map…
+        </span>
       </div>
     ),
   },
 ) as React.ComponentType<SatelliteMapProps>;
 
-export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { incidentId: string; autoOpen3D?: boolean }) {
+export function IncidentInvestigation({
+  incidentId,
+  autoOpen3D = false,
+}: {
+  incidentId: string;
+  autoOpen3D?: boolean;
+}) {
   const [data, setData] = useState<IncidentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,31 +71,63 @@ export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { inci
   }>({ status: "idle" });
   const [show3D, setShow3D] = useState(false);
   const openedFromRoute = useRef(false);
+
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}`, { cache: "no-store" });
+      const response = await fetch(
+        `/api/incidents/${encodeURIComponent(incidentId)}`,
+        { cache: "no-store" },
+      );
       const envelope: unknown = await response.json();
       const body = envelope as { success?: unknown; data?: unknown };
-      if (!response.ok || body.success !== true) throw new Error(response.status === 404 ? "Incident not found." : "Incident read failed");
+      if (!response.ok || body.success !== true)
+        throw new Error(
+          response.status === 404
+            ? "Incident not found."
+            : "Incident read failed",
+        );
       setData(incidentResponseSchema.parse(body.data));
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Incident data could not be loaded."); } finally { setLoading(false); }
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Incident record could not be loaded.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [incidentId]);
-  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   useEffect(() => {
     if (autoOpen3D && data?.project.currentBoundary && !openedFromRoute.current) {
       openedFromRoute.current = true;
       setShow3D(true);
     }
   }, [autoOpen3D, data]);
+
   const flagForAudit = useCallback(async () => {
-    setAuditState({ status: "submitting", message: "Recording human audit recommendation…" });
+    setAuditState({
+      status: "submitting",
+      message: "Submitting human audit recommendation…",
+    });
     try {
-      const response = await fetch(`/api/audits/${encodeURIComponent(incidentId)}/actions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "FLAG_FOR_AUDIT", actor: "human:command-mode" }),
-      });
+      const response = await fetch(
+        `/api/audits/${encodeURIComponent(incidentId)}/actions`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "FLAG_FOR_AUDIT",
+            actor: "human:command-mode",
+          }),
+        },
+      );
       const envelope: unknown = await response.json();
       const body = envelope as {
         success?: unknown;
@@ -73,42 +135,95 @@ export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { inci
         error?: { message?: unknown };
       };
       if (!response.ok || body.success !== true) {
-        throw new Error(typeof body.error?.message === "string" ? body.error.message : "Audit recommendation failed");
+        throw new Error(
+          typeof body.error?.message === "string"
+            ? body.error.message
+            : "Audit recommendation failed",
+        );
       }
       auditActionResponseSchema.parse(body.data);
-      setAuditState({ status: "success", message: "Audit recommendation recorded. Refreshing timeline…" });
+      setAuditState({
+        status: "success",
+        message: "Audit recommendation recorded in database.",
+      });
       await load();
     } catch (caught) {
-      setAuditState({ status: "error", message: caught instanceof Error ? caught.message : "Audit recommendation failed" });
+      setAuditState({
+        status: "error",
+        message:
+          caught instanceof Error
+            ? caught.message
+            : "Audit recommendation failed",
+      });
     }
   }, [incidentId, load]);
-  const timeline = useMemo(() => data ? [
-    ...data.statusHistory.map((entry) => ({ id: `status-${entry.id}`, kind: "STATUS" as const, date: entry.createdAt, title: entry.toStatus.replaceAll("_", " "), detail: `${entry.fromStatus ? `${entry.fromStatus.replaceAll("_", " ")} → ` : ""}${entry.actor}`, label: entry.createdByType })),
-    ...data.evidence.map((entry) => ({ id: `evidence-${entry.id}`, kind: "EVIDENCE" as const, date: entry.createdAt, title: `${entry.label} evidence`, detail: entry.notes ?? "Evidence record attached to this incident.", label: entry.createdByType })),
-  ].sort((left, right) => left.date.localeCompare(right.date) || left.id.localeCompare(right.id)) : [], [data]);
-  if (loading) return <LoadingState label="Loading investigation record" />;
-  if (error || !data) return <ErrorState message={error ?? "Incident unavailable."} onRetry={() => void load()} />;
+
+  const timeline = useMemo(
+    () =>
+      data
+        ? [
+            ...data.statusHistory.map((entry) => ({
+              id: `status-${entry.id}`,
+              kind: "STATUS" as const,
+              date: entry.createdAt,
+              title: entry.toStatus.replaceAll("_", " "),
+              detail: `${
+                entry.fromStatus
+                  ? `${entry.fromStatus.replaceAll("_", " ")} → `
+                  : ""
+              }${entry.actor}`,
+              label: entry.createdByType,
+              reason: entry.reason,
+            })),
+            ...data.evidence.map((entry) => ({
+              id: `evidence-${entry.id}`,
+              kind: "EVIDENCE" as const,
+              date: entry.createdAt,
+              title: `${entry.label} Evidence`,
+              detail:
+                entry.notes ?? "Evidence record attached to this incident.",
+              label: entry.createdByType,
+              reason: null,
+            })),
+          ].sort(
+            (left, right) =>
+              left.date.localeCompare(right.date) ||
+              left.id.localeCompare(right.id),
+          )
+        : [],
+    [data],
+  );
+
+  if (loading) return <LoadingState label="Loading incident dossier" />;
+  if (error || !data)
+    return (
+      <ErrorState
+        message={error ?? "Incident unavailable."}
+        onRetry={() => void load()}
+      />
+    );
 
   const assessment = data.latestAssessment;
 
-  // ── Build satellite map props from real incident data ──────────────────
-  const eventGeomForCentroid = data.event.geometry as { type?: string; coordinates?: number[] } | null;
-  const fallbackLng = (eventGeomForCentroid?.coordinates?.[0]) ?? 0;
-  const fallbackLat = (eventGeomForCentroid?.coordinates?.[1]) ?? 0;
+  const eventGeomForCentroid = data.event.geometry as {
+    type?: string;
+    coordinates?: number[];
+  } | null;
+  const fallbackLng = eventGeomForCentroid?.coordinates?.[0] ?? 0;
+  const fallbackLat = eventGeomForCentroid?.coordinates?.[1] ?? 0;
   const centroid: [number, number] = [
     data.project.centroidLng ?? fallbackLng,
     data.project.centroidLat ?? fallbackLat,
   ];
 
+  const boundary: GeoJsonFeature | null = data.project.currentBoundary
+    ? (data.project.currentBoundary.geojson as GeoJsonFeature)
+    : null;
 
-  // Project boundary GeoJSON — sourced from currentBoundary.geojson
-  const boundary: GeoJsonFeature | null =
-    data.project.currentBoundary
-      ? (data.project.currentBoundary.geojson as GeoJsonFeature)
-      : null;
-
-  // FIRMS event point
-  const eventGeom = data.event.geometry as { type?: string; coordinates?: number[] } | null;
+  const eventGeom = data.event.geometry as {
+    type?: string;
+    coordinates?: number[];
+  } | null;
   const firmsPoints: FirmsPoint[] =
     eventGeom?.type === "Point" && Array.isArray(eventGeom.coordinates)
       ? [
@@ -124,41 +239,393 @@ export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { inci
         ]
       : [];
 
-  return <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
-    {show3D ? <Investigation3DOverlay data={mapIncidentToSceneState(data)} onClose={() => setShow3D(false)} /> : null}
-    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500"><Link href="/?mode=command" className="text-emerald-300/70 hover:text-emerald-200">Portfolio</Link><span>/</span><Link href={`/projects/${data.projectId}`} className="text-emerald-300/70 hover:text-emerald-200">{data.project.name}</Link><span>/</span><span>Incident {data.id}</span></div>
-    <header className="mt-6 flex flex-col gap-5 border-b border-white/10 pb-8 xl:flex-row xl:items-end xl:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-red-200/80">Investigation center</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300">{data.status.replaceAll("_", " ")}</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">{data.event.type} at {data.project.name}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Observed by {data.event.sourceName} · acquired {formatDate(data.event.acquiredAt)} · source confidence {data.event.sourceConfidence === null ? "not recorded" : data.event.sourceConfidence.toFixed(2)}</p></div><div className="flex flex-col items-start gap-3 xl:items-end"><div className="flex flex-wrap items-center gap-3"><RiskBadge risk={assessment?.integrityRisk ?? null} />{data.project.currentBoundary ? <button type="button" onClick={() => setShow3D(true)} className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3.5 py-2.5 text-xs font-semibold text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-300/20">Investigate in 3D</button> : null}{data.status === "UNDER_ASSESSMENT" ? <button type="button" onClick={() => void flagForAudit()} disabled={auditState.status === "submitting"} className="inline-flex items-center gap-2 rounded-lg border border-red-300/30 bg-red-300/10 px-3.5 py-2.5 text-xs font-semibold text-red-100 transition hover:border-red-200/50 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-70">{auditState.status === "submitting" ? <span className="h-3 w-3 animate-spin rounded-full border border-red-100/30 border-t-red-100" /> : null}{auditState.status === "submitting" ? "Recording…" : "Flag for Audit"}</button> : data.status === "AUDIT_RECOMMENDED" ? <span className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-200">Audit recommended</span> : null}</div>{auditState.message ? <p aria-live="polite" className={`max-w-xs text-right text-xs ${auditState.status === "error" ? "text-red-200" : auditState.status === "success" ? "text-emerald-200" : "text-slate-400"}`}>{auditState.message}</p> : null}</div></header>
-
-    <section className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><MetricCard label="Physical impact" value={assessment?.estimatedImpactHa === null || !assessment ? "—" : `${assessment.estimatedImpactHa.toFixed(2)} ha`} detail={assessment ? "ESTIMATED buffered overlap" : "No deterministic assessment"} tone={assessment ? "amber" : "neutral"} /><MetricCard label="Impact share" value={formatPercent(assessment?.impactPct ?? null)} detail="Deterministic project-area ratio" tone="amber" /><MetricCard label="Credit exposure" value={assessment?.creditExposure === null || !assessment ? "—" : `${assessment.creditExposure.toFixed(2)} credits`} detail="Held quantity × impact share" tone="red" /><MetricCard label="Financial exposure" value={formatCurrency(assessment?.financialExposureEst ?? null, assessment?.financialCurrency ?? "USD")} detail="ESTIMATED reference valuation" tone="amber" /><MetricCard label="Evidence confidence" value={assessment?.evidenceConfidence ?? "—"} detail={assessment?.evidenceConfidenceScore === null || !assessment ? "Not assessed" : `Score ${assessment.evidenceConfidenceScore.toFixed(0)} / 100`} tone={assessment?.evidenceConfidence === "HIGH" ? "green" : "blue"} /></section>
-
-    {/* ── Satellite investigation map ────────────────────────────────── */}
-    <Panel className="mt-7 overflow-hidden">
-      <PanelHeading
-        eyebrow="Satellite view · Esri World Imagery"
-        title="Incident location & evidence"
-        detail="Event point · project boundary · ESTIMATED impact zone"
-      />
-      <div className="px-5 pb-5 sm:px-6">
-        <SatelliteMap
-          centroid={centroid}
-          zoom={11}
-          boundary={boundary}
-          firmsPoints={firmsPoints}
-          height="360px"
+  return (
+    <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 sm:py-8">
+      {show3D ? (
+        <Investigation3DOverlay
+          data={mapIncidentToSceneState(data)}
+          onClose={() => setShow3D(false)}
         />
-        <p className="mt-3 text-[10px] text-slate-600">
-          Satellite imagery: Esri World Imagery — Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP.
-          {firmsPoints.length > 0
-            ? " · FIRMS point is a thermal anomaly detection. The buffered zone is ESTIMATED — not an exact burned area."
-            : " · No FIRMS point geometry available for this event."}
-        </p>
+      ) : null}
+
+      {/* Navigation Breadcrumbs */}
+      <div className="flex items-center gap-2 cx-mono text-[11px] text-[var(--cx-text-muted)]">
+        <Link
+          href="/?mode=command"
+          className="transition hover:text-[var(--cx-accent)]"
+        >
+          PORTFOLIO
+        </Link>
+        <span>/</span>
+        <Link
+          href={`/projects/${data.projectId}`}
+          className="transition hover:text-[var(--cx-accent)]"
+        >
+          {data.project.name}
+        </Link>
+        <span>/</span>
+        <span className="text-[var(--cx-text)]">
+          INCIDENT-{data.id.slice(0, 8)}
+        </span>
       </div>
-    </Panel>
 
-    <div className="mt-7 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]"><Panel><PanelHeading eyebrow="Event provenance" title="Observed source context" detail="Source facts are distinct from calculated impact" /><div className="grid gap-5 px-5 py-6 sm:grid-cols-2 sm:px-6"><div><p className="cx-label">Source</p><p className="mt-2 text-sm text-slate-200">{data.event.sourceName}</p><p className="mt-1 text-xs text-slate-500">{data.event.sourceInstrument ?? "Instrument not recorded"}</p></div><div><p className="cx-label">Observation</p><p className="mt-2 text-sm text-slate-200">{formatDate(data.event.observedAt)}</p><p className="mt-1 text-xs text-slate-500">{data.event.originType} · {data.event.createdByType}</p></div><div><p className="cx-label">Boundary evidence</p><p className="mt-2 text-sm text-slate-200">{assessment ? <EvidenceBadge label={assessment.evidence[0]?.label ?? "ESTIMATED"} /> : "—"}</p><p className="mt-2 text-xs leading-5 text-slate-500">Buffered point detections are estimates and must not be read as exact burned area.</p></div><div><p className="cx-label">Audit priority</p><p className="mt-2 text-sm font-medium text-slate-200">{assessment?.auditPriority ?? "—"}</p><p className="mt-1 text-xs text-slate-500">Deterministic risk and evidence matrix</p></div></div></Panel><Panel><PanelHeading eyebrow="Assessment provenance" title="Method and uncertainty" detail="All values originate from RiskAssessment" />{!assessment ? <EmptyState title="Assessment unavailable" detail="This incident has context but no persisted deterministic assessment yet." /> : <div className="space-y-5 px-5 py-6 sm:px-6"><div className="grid gap-4 sm:grid-cols-2"><div><p className="cx-label">Engine version</p><p className="mt-2 font-mono text-xs text-slate-300">{assessment.engineVersion}</p></div><div><p className="cx-label">Methodology</p><p className="mt-2 font-mono text-xs text-slate-300">{assessment.methodologyVersion}</p></div></div><div><p className="cx-label">Uncertainty disclosure</p><p className="mt-2 text-sm leading-6 text-slate-300">{assessment.uncertaintyNotes ?? "No uncertainty note recorded."}</p></div><div><p className="cx-label">Created by</p><p className="mt-2 text-xs text-slate-400">{assessment.createdByType} · {formatDate(assessment.createdAt)}</p></div></div>}</Panel></div>
+      {/* Incident Header */}
+      <header className="mt-3 border-b border-[var(--cx-border)] pb-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="cx-eyebrow">INCIDENT INVESTIGATION DOSSIER</span>
+              <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                STATUS: {data.status.replaceAll("_", " ")}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-medium tracking-tight text-white sm:text-3xl">
+              {data.event.type} Incident · {data.project.name}
+            </h1>
+            <p className="cx-mono mt-1 text-[11px] text-[var(--cx-text-muted)]">
+              Observed by {data.event.sourceName}{" "}
+              {data.event.sourceInstrument ? `(${data.event.sourceInstrument})` : ""} ·
+              Acquired {formatDate(data.event.acquiredAt)}
+            </p>
+          </div>
 
-    <div className="mt-5 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]"><Panel><PanelHeading eyebrow="AI interpretation" title="Narrative assessment" detail="AI is interpretive, never authoritative" />{!assessment?.aiReport ? <EmptyState title="Interpretation Unavailable" detail="No valid AI report is attached. Deterministic assessment data and audit workflow remain available." /> : <div className="grid gap-5 px-5 py-6 sm:grid-cols-2 sm:px-6">{([["Facts", assessment.aiReport.facts], ["Estimated impacts", assessment.aiReport.estimatedImpacts], ["Uncertainties", assessment.aiReport.uncertainties], ["Portfolio consequences", assessment.aiReport.portfolioConsequences], ["Recommendations", assessment.aiReport.recommendations]] as const).map(([title, text]) => <div key={title} className="rounded-xl border border-white/10 bg-black/10 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/70">{title}</p><p className="mt-3 text-sm leading-6 text-slate-300">{text}</p></div>)}</div>}</Panel><Panel><PanelHeading eyebrow="Evidence commitments" title="Blockchain anchors" detail="Cryptographic evidence state" />{data.anchors.length === 0 ? <EmptyState title="No anchor records" detail="Blockchain anchoring is asynchronous and does not block incident investigation." /> : <div className="divide-y divide-white/10">{data.anchors.map((anchor) => <div key={anchor.id} className="px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><p className="text-sm font-medium text-slate-200">{anchor.eventType.replaceAll("_", " ")}</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${anchor.status === "CONFIRMED" ? "bg-emerald-300/10 text-emerald-200" : anchor.status === "FAILED" ? "bg-red-300/10 text-red-200" : "bg-amber-300/10 text-amber-200"}`}>{anchor.status}</span></div><p className="mt-3 break-all font-mono text-[11px] text-slate-500">{anchor.txHash ?? anchor.failureReason ?? "Awaiting transaction submission"}</p><p className="mt-2 text-xs text-slate-600">{anchor.network} · {formatDate(anchor.confirmedAt ?? anchor.createdAt)}</p></div>)}</div>}</Panel></div>
+          {/* Action Controls */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-[var(--cx-border-subtle)] pt-3 lg:border-t-0 lg:pt-0">
+            <RiskBadge risk={assessment?.integrityRisk ?? null} />
 
-    <Panel className="mt-5"><PanelHeading eyebrow="Evidence timeline" title="Ordered incident record" detail={`${timeline.length} timeline entries`} />{timeline.length === 0 ? <EmptyState title="No timeline entries" detail="No status or evidence records are attached to this incident." /> : <div className="divide-y divide-white/10">{timeline.map((entry) => <div key={entry.id} className="flex gap-4 px-5 py-5 sm:px-6"><div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${entry.kind === "STATUS" ? "bg-emerald-300" : "bg-blue-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium text-slate-200">{entry.title}</p><time className="text-[11px] text-slate-600">{formatDate(entry.date)}</time></div><p className="mt-2 text-xs leading-5 text-slate-400">{entry.detail}</p><p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-600">{entry.label}</p></div></div>)}</div>}</Panel>
-  </div>;
+            {data.project.currentBoundary ? (
+              <button
+                type="button"
+                onClick={() => setShow3D(true)}
+                className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--cx-accent)] transition hover:border-[var(--cx-accent)]"
+              >
+                3D Investigation →
+              </button>
+            ) : null}
+
+            {data.status === "UNDER_ASSESSMENT" ? (
+              <button
+                type="button"
+                onClick={() => void flagForAudit()}
+                disabled={auditState.status === "submitting"}
+                className="cx-mono rounded border border-[rgba(229,107,120,0.3)] bg-[rgba(229,107,120,0.12)] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#e56b78] transition hover:bg-[rgba(229,107,120,0.2)] disabled:cursor-wait"
+              >
+                {auditState.status === "submitting" ? "Recording…" : "Flag for Audit"}
+              </button>
+            ) : data.status === "AUDIT_RECOMMENDED" ? (
+              <span className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-3 py-2 text-xs font-medium text-[var(--cx-text-secondary)]">
+                Audit Recommended
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {auditState.message ? (
+          <p
+            className={`cx-mono mt-2 text-xs ${
+              auditState.status === "error"
+                ? "text-[var(--cx-critical)]"
+                : "text-[var(--cx-success)]"
+            }`}
+          >
+            {auditState.message}
+          </p>
+        ) : null}
+      </header>
+
+      {/* ── Deterministic Metrics Strip ─────────────────────────────────── */}
+      <section className="mt-6 grid grid-cols-2 gap-4 border-b border-[var(--cx-border)] pb-6 sm:grid-cols-5">
+        <div>
+          <span className="cx-label block text-[9px]">Physical Impact</span>
+          <span className="cx-mono text-base font-semibold text-white">
+            {assessment?.estimatedImpactHa !== null && assessment
+              ? `${assessment.estimatedImpactHa.toFixed(2)} ha`
+              : "—"}
+          </span>
+          <span className="cx-mono block text-[9px] text-[var(--cx-text-muted)]">
+            ESTIMATED Overlap
+          </span>
+        </div>
+
+        <div>
+          <span className="cx-label block text-[9px]">Impact Share</span>
+          <span className="cx-mono text-base font-semibold text-white">
+            {formatPercent(assessment?.impactPct ?? null)}
+          </span>
+          <span className="cx-mono block text-[9px] text-[var(--cx-text-muted)]">
+            Area Ratio
+          </span>
+        </div>
+
+        <div>
+          <span className="cx-label block text-[9px]">Credit Exposure</span>
+          <span className="cx-mono text-base font-semibold text-[var(--cx-critical)]">
+            {assessment?.creditExposure !== null && assessment
+              ? `${assessment.creditExposure.toFixed(2)} credits`
+              : "—"}
+          </span>
+          <span className="cx-mono block text-[9px] text-[var(--cx-text-muted)]">
+            Held Volume × Share
+          </span>
+        </div>
+
+        <div>
+          <span className="cx-label block text-[9px]">Financial Exposure</span>
+          <span className="cx-mono text-base font-semibold text-[var(--cx-warning)]">
+            {formatCurrency(
+              assessment?.financialExposureEst ?? null,
+              assessment?.financialCurrency ?? "USD",
+            )}
+          </span>
+          <span className="cx-mono block text-[9px] text-[var(--cx-text-muted)]">
+            ESTIMATED Valuation
+          </span>
+        </div>
+
+        <div>
+          <span className="cx-label block text-[9px]">Evidence Confidence</span>
+          <span className="cx-mono text-base font-semibold text-[var(--cx-text)]">
+            {assessment?.evidenceConfidence ?? "—"}
+          </span>
+          <span className="cx-mono block text-[9px] text-[var(--cx-text-muted)]">
+            Score: {assessment?.evidenceConfidenceScore?.toFixed(0) ?? "n/a"}/100
+          </span>
+        </div>
+      </section>
+
+      {/* ── WORKSPACE: Dual Column Split Layout ─────────────────────────── */}
+      <section className="mt-8 grid gap-8 lg:grid-cols-2">
+        {/* Left Column: Spatial & Evidentiary Base */}
+        <div className="space-y-6">
+          {/* Spatial Evidence Map */}
+          <div>
+            <div className="flex items-center justify-between border-x border-t border-[var(--cx-border)] bg-[var(--cx-surface)] px-4 py-2 text-xs">
+              <span className="cx-mono text-[10px] uppercase tracking-wider text-[var(--cx-text)]">
+                SPATIAL EVIDENCE · OVERLAP INSPECTION
+              </span>
+              <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                ESRI SATELLITE
+              </span>
+            </div>
+            <SatelliteMap
+              centroid={centroid}
+              zoom={11}
+              boundary={boundary}
+              firmsPoints={firmsPoints}
+              height="380px"
+              className="rounded-t-none"
+            />
+          </div>
+
+          {/* Section 1: OBSERVED Source Facts */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-5 py-3">
+              <span className="cx-eyebrow">OBSERVED</span>
+              <h2 className="text-sm font-semibold text-white">
+                Observation Provenance
+              </h2>
+            </div>
+            <div className="grid gap-4 p-5 text-xs sm:grid-cols-2">
+              <div>
+                <span className="cx-label block text-[9px]">Observation Source</span>
+                <p className="mt-1 text-[var(--cx-text)] font-medium">
+                  {data.event.sourceName}
+                </p>
+                <p className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                  {data.event.sourceInstrument ?? "Instrument unspecified"}
+                </p>
+              </div>
+
+              <div>
+                <span className="cx-label block text-[9px]">Observation Time</span>
+                <p className="cx-mono mt-1 text-[var(--cx-text)]">
+                  {formatDate(data.event.observedAt)}
+                </p>
+                <p className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                  Origin: {data.event.originType}
+                </p>
+              </div>
+
+              <div>
+                <span className="cx-label block text-[9px]">Boundary Evidence</span>
+                <div className="mt-1">
+                  {assessment ? (
+                    <EvidenceBadge
+                      label={assessment.evidence[0]?.label ?? "ESTIMATED"}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <span className="cx-label block text-[9px]">Audit Priority</span>
+                <p className="cx-mono mt-1 font-semibold text-[var(--cx-text)]">
+                  {assessment?.auditPriority ?? "ROUTINE"}
+                </p>
+              </div>
+            </div>
+          </Panel>
+
+          {/* Section 2: Blockchain Cryptographic Anchors */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-5 py-3">
+              <span className="cx-eyebrow">EVIDENCE COMMITMENTS</span>
+              <h2 className="text-sm font-semibold text-white">
+                Cryptographic Blockchain Anchors
+              </h2>
+            </div>
+            {data.anchors.length === 0 ? (
+              <EmptyState
+                title="No anchors committed"
+                detail="Cryptographic evidence commitments are submitted asynchronously and do not block incident investigation."
+              />
+            ) : (
+              <div className="divide-y divide-[var(--cx-border-subtle)]">
+                {data.anchors.map((anchor) => (
+                  <div key={anchor.id} className="p-4 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="cx-mono font-medium text-white">
+                        {anchor.eventType}
+                      </span>
+                      <span className="cx-mono text-[9px] uppercase tracking-wider text-[var(--cx-accent)]">
+                        {anchor.status}
+                      </span>
+                    </div>
+                    <p className="cx-mono mt-2 break-all text-[10px] text-[var(--cx-text-muted)]">
+                      {anchor.txHash ??
+                        anchor.failureReason ??
+                        "Pending cryptographic submission"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+
+        {/* Right Column: Deterministic Calculations, AI Narrative & Timeline */}
+        <div className="space-y-6">
+          {/* Section 3: CALCULATED Deterministic Assessment */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-5 py-3">
+              <span className="cx-eyebrow">CALCULATED</span>
+              <h2 className="text-sm font-semibold text-white">
+                Deterministic Risk Engine
+              </h2>
+            </div>
+            {!assessment ? (
+              <EmptyState
+                title="Assessment unavailable"
+                detail="This incident is under evaluation. Deterministic risk numbers have not yet been committed."
+              />
+            ) : (
+              <div className="space-y-4 p-5 text-xs">
+                <div className="grid grid-cols-2 gap-4 cx-mono text-[11px]">
+                  <div>
+                    <span className="cx-label block text-[9px]">Engine Version</span>
+                    <span className="text-[var(--cx-text)]">
+                      {assessment.engineVersion}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="cx-label block text-[9px]">Methodology</span>
+                    <span className="text-[var(--cx-text)]">
+                      {assessment.methodologyVersion}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="cx-label block text-[9px]">Uncertainty Disclosure</span>
+                  <p className="mt-1 text-[var(--cx-text-secondary)] leading-5">
+                    {assessment.uncertaintyNotes ??
+                      "No specific uncertainty caveats recorded for this assessment run."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </Panel>
+
+          {/* Section 4: AI Narrative Interpretation */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-5 py-3">
+              <span className="cx-eyebrow">AI INTERPRETATION</span>
+              <h2 className="text-sm font-semibold text-white">
+                Contextual Synthesis
+              </h2>
+            </div>
+            {!assessment?.aiReport ? (
+              <EmptyState
+                title="Interpretation unavailable"
+                detail="AI report generation is non-blocking. Deterministic assessment data and human audit controls remain fully available."
+              />
+            ) : (
+              <div className="space-y-4 p-5 text-xs">
+                {(
+                  [
+                    ["Observed Facts", assessment.aiReport.facts],
+                    ["Estimated Impacts", assessment.aiReport.estimatedImpacts],
+                    ["Uncertainties", assessment.aiReport.uncertainties],
+                    [
+                      "Portfolio Consequences",
+                      assessment.aiReport.portfolioConsequences,
+                    ],
+                    ["Recommendations", assessment.aiReport.recommendations],
+                  ] as const
+                ).map(([title, text]) => (
+                  <div key={title} className="border-b border-[var(--cx-border-subtle)] pb-3 last:border-b-0 last:pb-0">
+                    <span className="cx-label text-[9px] text-[var(--cx-accent)]">
+                      {title}
+                    </span>
+                    <p className="mt-1 text-[var(--cx-text-secondary)] leading-relaxed">
+                      {text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
+          {/* Section 5: Evidentiary Audit Timeline */}
+          <Panel>
+            <div className="border-b border-[var(--cx-border)] px-5 py-3">
+              <span className="cx-eyebrow">AUDIT HISTORY</span>
+              <h2 className="text-sm font-semibold text-white">
+                Evidentiary Timeline ({timeline.length} records)
+              </h2>
+            </div>
+            {timeline.length === 0 ? (
+              <EmptyState
+                title="No timeline entries"
+                detail="No audit history or status transitions recorded."
+              />
+            ) : (
+              <div className="divide-y divide-[var(--cx-border-subtle)]">
+                {timeline.map((entry) => (
+                  <div key={entry.id} className="p-4 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white">
+                        {entry.title}
+                      </span>
+                      <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
+                        {formatDate(entry.date)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[var(--cx-text-secondary)]">
+                      {entry.detail}
+                    </p>
+                    <span className="cx-mono mt-1 inline-block text-[9px] uppercase tracking-wider text-[var(--cx-text-muted)]">
+                      Recorded by: {entry.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      </section>
+    </div>
+  );
 }
