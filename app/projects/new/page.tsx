@@ -69,19 +69,27 @@ export default function SubmitProjectPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = new FormData();
+      payload.append("name", formData.name);
+      payload.append("project_type", formData.project_type);
+      payload.append("area_hectares", formData.area_hectares.toString());
+      payload.append("claimed_tco2e", formData.claimed_tco2e.toString());
+      payload.append("description", formData.description);
+      payload.append("country_code", formData.country_code);
+
+      if (pddFiles[0]) {
+        payload.append("pdd_file", pddFiles[0]);
+      }
+      if (geoFiles[0]) {
+        payload.append("geojson_file", geoFiles[0]);
+      }
+      if (parsedGeoJson) {
+        payload.append("boundary_geojson", JSON.stringify(parsedGeoJson));
+      }
+
       const res = await fetch("/api/projects", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          project_type: formData.project_type,
-          area_hectares: formData.area_hectares,
-          claimed_tco2e: formData.claimed_tco2e,
-          description: formData.description,
-          boundary_geojson: parsedGeoJson,
-          country_code: formData.country_code,
-          pdd_filename: pddFiles[0]?.name,
-        }),
+        body: payload,
       });
 
       const body = await res.json();
@@ -101,6 +109,7 @@ export default function SubmitProjectPage() {
       setLoading(false);
     }
   };
+
 
   const inputClass =
     "w-full bg-[var(--cx-surface-inset)] border border-[var(--cx-border)] rounded-lg px-4 py-2.5 text-white placeholder:text-[var(--cx-text-muted)] focus:outline-none focus:border-[var(--cx-accent)] transition text-sm";

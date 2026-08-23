@@ -7,6 +7,8 @@ export interface TrustScoreModelInput {
   boundaryVerifiedAt: Date | string | null;
   boundaryAcquiredAt: Date | string | null;
   areaHa: number | null;
+  claimedAreaHa?: number | null;
+  hasPddFile?: boolean;
   heldQuantity: number;
   registryId: string | null;
   methodology: string | null;
@@ -17,6 +19,7 @@ export interface TrustScoreModelInput {
   hasHighRiskIncident: boolean;
   referenceAt?: Date;
 }
+
 
 export interface TrustScoreModelComponent {
   component_name: string;
@@ -118,8 +121,22 @@ export function calculateTrustScoreModel(
     ? qualityScore[input.boundaryQuality ?? "UNKNOWN"] ?? qualityScore.UNKNOWN
     : 0;
   let geographicReason = input.boundaryPresent
-    ? `Boundary provenance is ${input.boundaryQuality ?? "UNKNOWN"}; score uses the stored boundary quality.`
+    ? `Boundary provenance is ${input.boundaryQuality ?? "UNKNOWN"}; measured area is ${measuredAreaHa.toFixed(1)} ha.`
     : "No project boundary is registered.";
+
+  if (input.claimedAreaHa && input.claimedAreaHa > 0 && measuredAreaHa > 0) {
+    const mismatchPct = Math.abs(measuredAreaHa - input.claimedAreaHa) / Math.max(measuredAreaHa, input.claimedAreaHa) * 100;
+    if (mismatchPct > 15) {
+      geographicScore = Math.max(3.0, geographicScore * (1 - mismatchPct / 100));
+      geographicReason = `Area discrepancy: claimed ${input.claimedAreaHa.toFixed(1)} ha diverges by ${mismatchPct.toFixed(1)}% from calculated GIS polygon (${measuredAreaHa.toFixed(1)} ha).`;
+      anomalies.push({
+        type: "AREA_MISMATCH_DISCREPANCY",
+        severity: mismatchPct > 40 ? "CRITICAL" : "HIGH",
+        message: `Claimed project area (${input.claimedAreaHa.toFixed(1)} ha) deviates by ${mismatchPct.toFixed(1)}% from measured GIS polygon boundary (${measuredAreaHa.toFixed(1)} ha).`,
+      });
+    }
+  }
+
   if (!input.boundaryPresent || !input.boundaryHasGeometry) {
     geographicScore = Math.min(geographicScore, 4);
     geographicReason = "Boundary geometry is unavailable; no spatial verification is claimed.";
@@ -129,6 +146,7 @@ export function calculateTrustScoreModel(
       message: "A complete project boundary geometry is not available for verification.",
     });
   }
+
 
   let carbonScore = 0;
   let carbonReason = "No held quantity or positive project area is available to compare.";

@@ -7,6 +7,10 @@ export interface StoredProject {
   countryCode: string | null;
   centroidLng: number;
   centroidLat: number;
+  claimedAreaHa?: number;
+  pddFileName?: string | null;
+  pddPath?: string | null;
+  geojsonPath?: string | null;
   boundaries: Array<{
     id: string;
     version: number;
@@ -49,6 +53,7 @@ export interface StoredProject {
     }>;
   }>;
 }
+
 
 // Global in-memory storage to preserve dynamically created projects across requests
 declare global {
