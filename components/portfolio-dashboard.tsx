@@ -341,6 +341,7 @@ export function PortfolioDashboard({
                     <th>Held Quantity</th>
                     <th>Alerts</th>
                     <th>Risk State</th>
+                    <th className="text-right">AI Trust Score</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,8 +384,18 @@ export function PortfolioDashboard({
                       <td>
                         <RiskBadge risk={project.risk} />
                       </td>
+                      <td className="text-right">
+                        <Link
+                          href={`/projects/${project.id}/results`}
+                          className="cx-mono inline-flex items-center gap-1 rounded border border-[rgba(237,142,89,0.35)] bg-[rgba(237,142,89,0.12)] px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--cx-accent)] transition hover:bg-[rgba(237,142,89,0.22)]"
+                        >
+                          <span>AI TRUST SCORE</span>
+                          <span>→</span>
+                        </Link>
+                      </td>
                     </tr>
                   ))}
+
                 </tbody>
               </table>
             </div>

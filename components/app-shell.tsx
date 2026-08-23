@@ -83,6 +83,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
 
               <Link
+                href="/projects/project_wayanad/results"
+                className={`cx-mono flex flex-1 items-center justify-between rounded px-3 py-2 text-xs transition lg:flex-none ${
+                  pathname.includes("/results")
+                    ? "border border-[var(--cx-border-strong)] bg-[var(--cx-surface)] font-medium text-[var(--cx-accent)]"
+                    : "border border-transparent text-[var(--cx-text-muted)] hover:border-[var(--cx-border)] hover:bg-[var(--cx-surface-subtle)] hover:text-[var(--cx-accent)]"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      pathname.includes("/results")
+                        ? "bg-[var(--cx-accent)]"
+                        : "bg-transparent"
+                    }`}
+                  />
+                  AI Trust Score
+                </span>
+                <span className="text-[10px] text-[var(--cx-accent)]">AI</span>
+              </Link>
+
+
+              <Link
                 href="/"
                 className="cx-mono flex flex-1 items-center justify-between rounded border border-[var(--cx-border-subtle)] px-3 py-2 text-xs text-[var(--cx-accent)] transition hover:border-[var(--cx-accent)] hover:bg-[rgba(237,142,89,0.08)] lg:flex-none"
               >

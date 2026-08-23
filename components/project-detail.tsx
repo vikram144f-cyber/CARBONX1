@@ -180,9 +180,18 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                 {activeIncidents.length} Active
               </span>
             </div>
+            <div>
+              <Link
+                href={`/projects/${data.id}/results`}
+                className="cx-mono inline-flex items-center gap-1.5 rounded border border-[rgba(237,142,89,0.35)] bg-[rgba(237,142,89,0.12)] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[var(--cx-accent)] transition hover:bg-[rgba(237,142,89,0.22)]"
+              >
+                <span>AI TRUST SCORE →</span>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+
 
       {/* ── PRIMARY HERO: Satellite View & Boundary ─────────────────────── */}
       <section className="mt-6">

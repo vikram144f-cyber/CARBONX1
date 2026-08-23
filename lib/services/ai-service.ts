@@ -139,6 +139,66 @@ export class GeminiProvider implements AIProvider {
   }
 }
 
+export class NvidiaProvider implements AIProvider {
+
+  async generate(
+    input: AIReportInput,
+    systemPrompt: string,
+  ): Promise<AIProviderResponse> {
+    const apiKey = (process.env.NVIDIA_API_KEY || process.env.AI_API_KEY)?.trim();
+    if (!apiKey) throw new Error("NVIDIA API key is not configured");
+
+    const model = process.env.AI_MODEL_ID?.trim() || "meta/llama-3.3-70b-instruct";
+    const timeoutMs = 15_000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: JSON.stringify(input) },
+            ],
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`NVIDIA AI request failed with HTTP ${response.status}`);
+      }
+
+      const rawResponse = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = rawResponse.choices?.[0]?.message?.content;
+      if (!text || text.trim().length === 0) {
+        throw new Error("NVIDIA AI response did not contain content");
+      }
+      return { text, rawResponse };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("NVIDIA AI request timed out");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+
 function extractGeminiText(rawResponse: unknown): string {
   if (!rawResponse || typeof rawResponse !== "object") {
     throw new Error("Gemini response was not an object");
@@ -319,11 +379,24 @@ export class AIService {
       clock?: () => Date;
     },
   ) {
-    this.provider = provider ?? new GeminiProvider();
-    this.modelId = options?.modelId ?? process.env.AI_MODEL_ID?.trim() ?? "gemini-1.5-flash";
+    if (provider) {
+      this.provider = provider;
+    } else if (
+      process.env.NVIDIA_API_KEY ||
+      (process.env.AI_API_KEY && process.env.AI_API_KEY.startsWith("nvapi-"))
+    ) {
+      this.provider = new NvidiaProvider();
+    } else {
+      this.provider = new GeminiProvider();
+    }
+    this.modelId =
+      options?.modelId ??
+      process.env.AI_MODEL_ID?.trim() ??
+      (process.env.NVIDIA_API_KEY ? "meta/llama-3.3-70b-instruct" : "gemini-1.5-flash");
     this.promptVersion = options?.promptVersion ?? AI_PROMPT_VERSION;
     this.clock = options?.clock ?? (() => new Date());
   }
+
 
   async generateForAssessment(assessmentId: string): Promise<AIReportResult> {
     try {
