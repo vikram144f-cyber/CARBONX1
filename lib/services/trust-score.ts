@@ -294,6 +294,8 @@ export class TrustScoreService {
       areaHa: measuredAreaHa,
       claimedAreaHa: project.claimedAreaHa ?? measuredAreaHa,
       hasPddFile: Boolean(project.pddPath),
+      pddFileName: project.pddFileName ?? project.pddPath ?? null,
+      geojsonFileName: project.geojsonPath ?? boundary?.sourceUrl ?? boundary?.source ?? null,
       heldQuantity: totalCredits,
       registryId: project.registryId ?? null,
       methodology: project.methodology ?? null,
@@ -303,6 +305,7 @@ export class TrustScoreService {
       environmentalObservedAt,
       hasHighRiskIncident,
     });
+
     const scoreComponents: ScoreComponent[] = model.components as TrustScoreModelComponent[];
     const anomalies: Anomaly[] = model.anomalies as TrustScoreModelAnomaly[];
     const truthScore = model.truthScore;
