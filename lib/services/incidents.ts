@@ -121,7 +121,9 @@ const incidentQuery = {
 
 type IncidentRecord = Prisma.IncidentGetPayload<typeof incidentQuery>;
 
-function iso(date: Date): string {
+function iso(date: Date | string | null | undefined): string {
+  if (!date) return new Date().toISOString();
+  if (typeof date === "string") return date;
   return date.toISOString();
 }
 

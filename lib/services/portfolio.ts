@@ -62,9 +62,12 @@ const portfolioQuery = {
 
 type PortfolioRecord = Prisma.PortfolioGetPayload<typeof portfolioQuery>;
 
-function iso(date: Date): string {
+function iso(date: Date | string | null | undefined): string {
+  if (!date) return new Date().toISOString();
+  if (typeof date === "string") return date;
   return date.toISOString();
 }
+
 
 function riskForProject(
   incidents: PortfolioRecord["projects"][number]["incidents"],
