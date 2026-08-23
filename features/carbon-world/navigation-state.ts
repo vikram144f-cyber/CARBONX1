@@ -1,3 +1,5 @@
+import { CARBONX_THEME } from "../../lib/theme";
+
 export type WorldDestinationId =
   | "portfolio"
   | "projects"
@@ -143,4 +145,3 @@ export function worldStatusLine(state: WorldState): string {
   }
   return `${state.projectCount} projects monitored · ${state.activeIncidentCount} active incidents`;
 }
-import { CARBONX_THEME } from "../../lib/theme";

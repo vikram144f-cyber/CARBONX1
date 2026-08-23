@@ -39,6 +39,8 @@ const sourceFiles = [
   "features/carbon-world/bruno-simon-adapter.ts",
   "tests/firms-csv.test.ts",
   "lib/services/firms-csv.ts",
+  "tests/trust-score-model.test.ts",
+  "lib/services/trust-score-model.ts",
 ];
 
 try {
@@ -76,6 +78,7 @@ try {
     path.join(outputDirectory, "tests", "epic-09.test.js"),
     path.join(outputDirectory, "tests", "world-navigation.test.js"),
     path.join(outputDirectory, "tests", "firms-csv.test.js"),
+    path.join(outputDirectory, "tests", "trust-score-model.test.js"),
   ];
   for (const file of testFiles) {
     const test = spawnSync(

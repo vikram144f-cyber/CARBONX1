@@ -4,6 +4,7 @@ import { errorResponse, successResponse } from "@/lib/api-response";
 import { sentinelHubService } from "@/lib/services/sentinel-hub";
 import { projectIdParamSchema } from "@/lib/validations/portfolio";
 import { prisma } from "@/lib/prisma";
+import { getStoredProject, getFallbackProject } from "@/lib/services/project-store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,19 @@ export async function GET(
   }
 
   try {
-    const project = await prisma.carbonProject.findUnique({
-      where: { id: parsed.data.id },
-      select: { centroidLng: true, centroidLat: true },
-    });
+    let project: any = null;
+    try {
+      project = await prisma.carbonProject.findUnique({
+        where: { id: parsed.data.id },
+        select: { centroidLng: true, centroidLat: true },
+      });
+    } catch {
+      // safe fallback
+    }
+
+    if (!project) {
+      project = getStoredProject(parsed.data.id) ?? getFallbackProject(parsed.data.id);
+    }
 
     const lng = project?.centroidLng ?? 76.132;
     const lat = project?.centroidLat ?? 11.685;

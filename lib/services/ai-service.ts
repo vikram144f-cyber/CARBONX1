@@ -93,7 +93,7 @@ export class GeminiProvider implements AIProvider {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) throw new Error("Gemini API key is not configured");
 
-    const model = process.env.AI_MODEL_ID?.trim() || "gemini-1.5-flash";
+    const model = process.env.AI_MODEL_ID?.trim() || "gemini-2.5-flash";
     const timeoutMs = 10_000;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -392,7 +392,7 @@ export class AIService {
     this.modelId =
       options?.modelId ??
       process.env.AI_MODEL_ID?.trim() ??
-      (process.env.NVIDIA_API_KEY ? "meta/llama-3.3-70b-instruct" : "gemini-1.5-flash");
+      (process.env.NVIDIA_API_KEY ? "meta/llama-3.3-70b-instruct" : "gemini-2.5-flash");
     this.promptVersion = options?.promptVersion ?? AI_PROMPT_VERSION;
     this.clock = options?.clock ?? (() => new Date());
   }

@@ -183,7 +183,7 @@ export function TrustScoreCard({ projectId }: { projectId: string }) {
             </div>
 
             <p className="cx-mono mt-3 text-[10px] text-[var(--cx-text-muted)]">
-              Confidence: {(data.confidence * 100).toFixed(0)}%
+              Evidence coverage confidence: {(data.confidence * 100).toFixed(0)}%
             </p>
           </div>
 
@@ -200,7 +200,9 @@ export function TrustScoreCard({ projectId }: { projectId: string }) {
                 {/* AI Summary Banner */}
                 <div className="mt-4 rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-4 text-xs">
                   <span className="cx-eyebrow block text-[9px]">
-                    GEMINI 3.1 PRO SYNTHESIS
+                    {data.model_version.startsWith("google/")
+                      ? `${data.model_version.replace("google/", "").toUpperCase()} SYNTHESIS`
+                      : "DETERMINISTIC SCORE / AI NARRATIVE UNAVAILABLE"}
                   </span>
                   <p className="mt-1 text-[var(--cx-text-secondary)] leading-relaxed">
                     {data.gemini_report.ai_summary}
@@ -274,7 +276,7 @@ export function TrustScoreCard({ projectId }: { projectId: string }) {
                       ✓ NO CRITICAL OR HIGH SEVERITY ANOMALIES DETECTED
                     </span>
                     <p className="mt-1">
-                      All submitted claims, satellite NDVI measurements, and GIS boundaries align within threshold bounds.
+                      Stored claims, boundary provenance, and any linked FIRMS observations are evaluated within deterministic threshold bounds.
                     </p>
                   </div>
                 ) : (
