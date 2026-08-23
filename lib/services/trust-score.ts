@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { NotFoundError } from "./errors";
-import { getStoredProject } from "./project-store";
+import { getStoredProject, getFallbackProject } from "./project-store";
+
 
 
 export interface ScoreComponent {
@@ -519,119 +520,4 @@ export class TrustScoreService {
   }
 }
 
-function getFallbackProject(projectId: string) {
-  const map: Record<string, any> = {
-    project_wayanad: {
-      id: "project_wayanad",
-      name: "Wayanad Community Reforestation",
-      registryId: "VCS-4421",
-      methodology: "AR-ACM0003",
-      countryCode: "IN",
-      boundaries: [
-        {
-          id: "b_wayanad",
-          quality: "HIGH",
-          areaHa: 450.0,
-          source: "Survey of India / Registry Boundary",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 12500 }],
-      incidents: [],
-    },
-    project_sathyamangalam: {
-      id: "project_sathyamangalam",
-      name: "Sathyamangalam Tiger Reserve Eco-Restoration",
-      registryId: "VCS-3890",
-      methodology: "VM0007",
-      countryCode: "IN",
-      boundaries: [
-        {
-          id: "b_sathyamangalam",
-          quality: "HIGH",
-          areaHa: 620.0,
-          source: "Forest Survey Registry GIS",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 18000 }],
-      incidents: [],
-    },
-    project_vcs2386: {
-      id: "project_vcs2386",
-      name: "Rotunda Reforestation & Watershed Conservation",
-      registryId: "VCS-2386",
-      methodology: "AR-ACM0003",
-      countryCode: "IN",
-      boundaries: [
-        {
-          id: "b_rotunda",
-          quality: "HIGH",
-          areaHa: 520.0,
-          source: "Verra Registry GIS",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 14000 }],
-      incidents: [],
-    },
-    project_vcs2547: {
-      id: "project_vcs2547",
-      name: "ACAP Albania Coastal Wetland & Peatland",
-      registryId: "VCS-2547",
-      methodology: "VM0007",
-      countryCode: "AL",
-      boundaries: [
-        {
-          id: "b_albania",
-          quality: "HIGH",
-          areaHa: 310.0,
-          source: "ACAP Wetland Cadastre",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 8500 }],
-      incidents: [],
-    },
-    project_greenforest: {
-      id: "project_greenforest",
-      name: "GreenForest Amazon Bio-Corridor",
-      registryId: "VCS-1120",
-      methodology: "VM0007",
-      countryCode: "BR",
-      boundaries: [
-        {
-          id: "b_amazon",
-          quality: "HIGH",
-          areaHa: 890.0,
-          source: "INPE Prodes GIS Boundary",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 22000 }],
-      incidents: [],
-    },
-  };
-
-  return (
-    map[projectId] ?? {
-      id: projectId,
-      name: projectId.replace(/^project_/, "").replace(/_/g, " ").toUpperCase(),
-      registryId: "VCS-PENDING",
-      methodology: "AR-ACM0003",
-      countryCode: "IN",
-      boundaries: [
-        {
-          id: `b_${projectId}`,
-          quality: "HIGH",
-          areaHa: 100.0,
-          source: "Uploaded Boundary",
-          geojson: { type: "Feature" },
-        },
-      ],
-      creditHoldings: [{ heldQuantity: 10000 }],
-      incidents: [],
-    }
-  );
-}
 

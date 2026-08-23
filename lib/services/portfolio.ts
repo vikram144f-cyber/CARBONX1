@@ -8,7 +8,8 @@ import type {
   ProjectResponse,
 } from "../validations/portfolio";
 import { NotFoundError } from "./errors";
-import { getStoredProject } from "./project-store";
+import { getStoredProject, getFallbackProject } from "./project-store";
+
 
 
 
@@ -264,29 +265,30 @@ export class PortfolioService {
       countryCode: project.countryCode,
       centroidLng: project.centroidLng,
       centroidLat: project.centroidLat,
-      boundaries: project.boundaries.map((boundary) => ({
+      boundaries: (project.boundaries ?? []).map((boundary: any) => ({
         ...boundary,
         verifiedAt: boundary.verifiedAt ? iso(boundary.verifiedAt) : null,
       })),
       holdingSummary: {
-        heldQuantity: project.creditHoldings.reduce(
-          (sum, holding) => sum + holding.heldQuantity,
+        heldQuantity: (project.creditHoldings ?? []).reduce(
+          (sum: number, holding: any) => sum + holding.heldQuantity,
           0,
         ),
-        referenceValue: project.creditHoldings.reduce(
-          (sum, holding) => sum + holding.heldQuantity * holding.refValuePerUnit,
+        referenceValue: (project.creditHoldings ?? []).reduce(
+          (sum: number, holding: any) => sum + holding.heldQuantity * (holding.refValuePerUnit || 24.5),
           0,
         ),
-        holdingCount: project.creditHoldings.length,
+        holdingCount: (project.creditHoldings ?? []).length,
       },
-      holdings: project.creditHoldings,
-      incidents: project.incidents.map((incident) => ({
+      holdings: project.creditHoldings ?? [],
+      incidents: (project.incidents ?? []).map((incident: any) => ({
         ...mapIncidentSummary(incident),
         projectName: project.name,
       })),
     };
   }
 }
+
 
 function getFallbackPortfolio(): PortfolioResponse {
   const projects = [
