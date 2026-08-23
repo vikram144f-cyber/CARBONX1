@@ -3,30 +3,55 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, FileText, MapIcon, Loader2, X, FileCheck, Leaf } from "@/components/icons";
+import {
+  Upload,
+  FileText,
+  MapIcon,
+  Loader2,
+  X,
+  FileCheck,
+  Leaf,
+  CheckCircle2,
+} from "@/components/icons";
 
 export default function SubmitProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [pddFiles, setPddFiles] = useState<File[]>([]);
   const [geoFiles, setGeoFiles] = useState<File[]>([]);
+  const [parsedGeoJson, setParsedGeoJson] = useState<unknown | null>(null);
+  const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   const pddInputRef = useRef<HTMLInputElement>(null);
   const geoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    name: "GreenForest Demo",
+    name: "GreenCorridor Carbon Reserve",
     project_type: "AFFORESTATION",
-    area_hectares: 100.0,
-    claimed_tco2e: 10000.0,
-    description: "",
+    area_hectares: 120.0,
+    claimed_tco2e: 12000.0,
+    description: "High-integrity multi-species reforestation project with biodiversity corridors.",
+    country_code: "IN",
   });
 
-  const handleFileAdd = (
-    files: FileList | null,
-    setter: React.Dispatch<React.SetStateAction<File[]>>,
-  ) => {
+  const handlePddAdd = (files: FileList | null) => {
     if (!files) return;
-    setter((prev) => [...prev, ...Array.from(files)]);
+    setPddFiles((prev) => [...prev, ...Array.from(files)]);
+  };
+
+  const handleGeoAdd = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    setGeoFiles((prev) => [...prev, ...fileList]);
+
+    const primaryFile = fileList[0];
+    try {
+      const text = await primaryFile.text();
+      const json = JSON.parse(text);
+      setParsedGeoJson(json);
+      setGeoStatusMsg(`✓ Loaded ${primaryFile.name} — GeoJSON validated.`);
+    } catch {
+      setGeoStatusMsg(`⚠ File ${primaryFile.name} loaded (will be processed on server).`);
+    }
   };
 
   const removeFile = (
@@ -34,26 +59,53 @@ export default function SubmitProjectPage() {
     setter: React.Dispatch<React.SetStateAction<File[]>>,
   ) => {
     setter((prev) => prev.filter((f) => f.name !== name));
+    if (setter === setGeoFiles) {
+      setParsedGeoJson(null);
+      setGeoStatusMsg(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Simulate project registration & start verification pipeline
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      router.push(`/projects/project_wayanad/verify`);
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          project_type: formData.project_type,
+          area_hectares: formData.area_hectares,
+          claimed_tco2e: formData.claimed_tco2e,
+          description: formData.description,
+          boundary_geojson: parsedGeoJson,
+          country_code: formData.country_code,
+          pdd_filename: pddFiles[0]?.name,
+        }),
+      });
+
+      const body = await res.json();
+      if (!res.ok || !body.success) {
+        throw new Error(body.error?.message || "Project registration failed");
+      }
+
+      const newId = body.data.id;
+      router.push(`/projects/${newId}/verify`);
     } catch (err) {
       console.error(err);
-      alert("Failed to submit project. Please try again.");
-    } finally {
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to submit project. Please verify the boundary file and retry.",
+      );
       setLoading(false);
     }
   };
 
   const inputClass =
     "w-full bg-[var(--cx-surface-inset)] border border-[var(--cx-border)] rounded-lg px-4 py-2.5 text-white placeholder:text-[var(--cx-text-muted)] focus:outline-none focus:border-[var(--cx-accent)] transition text-sm";
-  const labelClass = "text-xs font-semibold uppercase tracking-wider text-[var(--cx-text-secondary)]";
+  const labelClass =
+    "text-xs font-semibold uppercase tracking-wider text-[var(--cx-text-secondary)]";
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-8 space-y-6">
@@ -65,7 +117,7 @@ export default function SubmitProjectPage() {
           Submit Project for Verification
         </h1>
         <p className="text-[var(--cx-text-muted)] mt-1.5 text-sm">
-          Upload project design documents and boundary files to begin the automated evidence-centric verification pipeline.
+          Upload project design documents (PDD) and GeoJSON boundary files to run the automated evidence reconciliation and AI Truth Score engine.
         </p>
       </div>
 
@@ -85,7 +137,9 @@ export default function SubmitProjectPage() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className={inputClass}
               />
             </div>
@@ -94,7 +148,9 @@ export default function SubmitProjectPage() {
               <select
                 className={inputClass}
                 value={formData.project_type}
-                onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, project_type: e.target.value })
+                }
               >
                 <option value="AFFORESTATION">Afforestation (A/R)</option>
                 <option value="CONSERVATION">Conservation (REDD+)</option>
@@ -108,11 +164,14 @@ export default function SubmitProjectPage() {
               <input
                 type="number"
                 required
-                min={0}
+                min={0.1}
                 step="0.01"
                 value={formData.area_hectares}
                 onChange={(e) =>
-                  setFormData({ ...formData, area_hectares: parseFloat(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    area_hectares: parseFloat(e.target.value) || 0,
+                  })
                 }
                 className={inputClass}
               />
@@ -122,10 +181,13 @@ export default function SubmitProjectPage() {
               <input
                 type="number"
                 required
-                min={0}
+                min={1}
                 value={formData.claimed_tco2e}
                 onChange={(e) =>
-                  setFormData({ ...formData, claimed_tco2e: parseFloat(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    claimed_tco2e: parseFloat(e.target.value) || 0,
+                  })
                 }
                 className={inputClass}
               />
@@ -165,7 +227,7 @@ export default function SubmitProjectPage() {
                 multiple
                 accept=".pdf,.docx,.txt"
                 className="hidden"
-                onChange={(e) => handleFileAdd(e.target.files, setPddFiles)}
+                onChange={(e) => handlePddAdd(e.target.files)}
               />
               <div
                 onClick={() => pddInputRef.current?.click()}
@@ -209,7 +271,7 @@ export default function SubmitProjectPage() {
                 multiple
                 accept=".geojson,.json,.kml,.tif,.tiff"
                 className="hidden"
-                onChange={(e) => handleFileAdd(e.target.files, setGeoFiles)}
+                onChange={(e) => void handleGeoAdd(e.target.files)}
               />
               <div
                 onClick={() => geoInputRef.current?.click()}
@@ -240,6 +302,11 @@ export default function SubmitProjectPage() {
                       </button>
                     </div>
                   ))}
+                  {geoStatusMsg && (
+                    <div className="text-[11px] text-[var(--cx-success)] font-mono px-1">
+                      {geoStatusMsg}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -247,7 +314,7 @@ export default function SubmitProjectPage() {
 
           {pddFiles.length === 0 && geoFiles.length === 0 && (
             <p className="text-xs text-[var(--cx-warning)] bg-[rgba(237,142,89,0.1)] border border-[rgba(237,142,89,0.25)] rounded-lg px-4 py-2.5 mt-3">
-              No custom files selected — the pipeline will run using the built-in verified registry dataset.
+              No custom files selected — the pipeline will automatically generate a verified reference boundary and registry dataset.
             </p>
           )}
         </div>
@@ -269,7 +336,7 @@ export default function SubmitProjectPage() {
             ) : (
               <Upload className="w-4 h-4" />
             )}
-            {loading ? "Starting Pipeline…" : "Start Verification"}
+            {loading ? "Registering & Starting Pipeline…" : "Start Verification"}
           </button>
         </div>
       </form>

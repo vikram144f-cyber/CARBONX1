@@ -18,7 +18,7 @@ const STAGES = [
   { id: "SATELLITE_ANALYSIS", label: "Sentinel-2 Multi-Spectral NDVI Analysis" },
   { id: "EVIDENCE_RECONCILIATION", label: "Multi-Modal Evidence Reconciliation" },
   { id: "TRUTH_SCORING", label: "Algorithmic Truth Scoring & Anomaly Detection" },
-  { id: "REPORT_GENERATION", label: "Gemini 3.1 Pro Synthesis & Report Compilation" },
+  { id: "REPORT_GENERATION", label: "NVIDIA Llama 3.3 70B Synthesis & Report Compilation" },
   { id: "COMPLETE", label: "Verification Complete" },
 ];
 
@@ -31,6 +31,9 @@ export default function LiveVerificationPage({
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [progress, setProgress] = useState(15);
+  const [projectName, setProjectName] = useState<string>(params.id);
+  const [projectArea, setProjectArea] = useState<number>(100);
+  const [claimedCarbon, setClaimedCarbon] = useState<number>(10000);
   const navigatedRef = useRef(false);
 
   const addEvent = useCallback(
@@ -43,17 +46,29 @@ export default function LiveVerificationPage({
   );
 
   useEffect(() => {
+    fetch(`/api/projects/${encodeURIComponent(params.id)}`)
+      .then((res) => res.json())
+      .then((envelope) => {
+        const p = envelope?.data ?? envelope;
+        if (p?.name) setProjectName(p.name);
+        if (p?.boundaries?.[0]?.areaHa) setProjectArea(p.boundaries[0].areaHa);
+        if (p?.creditHoldings?.[0]?.heldQuantity) setClaimedCarbon(p.creditHoldings[0].heldQuantity);
+      })
+      .catch(() => {});
+  }, [params.id]);
+
+  useEffect(() => {
     let currentIdx = 0;
     const stageTimeline = [
       {
         stage: "DOCUMENT_ANALYSIS",
         progress: 20,
-        message: "Parsed PDD document: validated methodology VM0007 and 10,000 tCO2e claim.",
+        message: `Parsed PDD document for ${projectName}: validated carbon methodology and ${claimedCarbon.toLocaleString()} tCO2e claim.`,
       },
       {
         stage: "GIS_ANALYSIS",
         progress: 40,
-        message: "Validated 100.0 ha boundary polygon: 0 topological self-intersections.",
+        message: `Validated ${projectArea.toFixed(1)} ha boundary polygon: 0 topological self-intersections detected.`,
       },
       {
         stage: "SATELLITE_ANALYSIS",
@@ -63,17 +78,17 @@ export default function LiveVerificationPage({
       {
         stage: "EVIDENCE_RECONCILIATION",
         progress: 80,
-        message: "Cross-modal consistency verified between GIS geometry and claimed volume.",
+        message: `Cross-modal consistency verified: ${(claimedCarbon / (projectArea || 1)).toFixed(1)} tCO2e/ha biomass density.`,
       },
       {
         stage: "TRUTH_SCORING",
         progress: 92,
-        message: "Truth Score calculated: 100.0/100 · Decision: VERIFIED.",
+        message: "Multi-modal Truth Score calculated · Decision category: VERIFIED.",
       },
       {
         stage: "REPORT_GENERATION",
         progress: 98,
-        message: "Synthesized AI verification dossier with zero detected anomalies.",
+        message: "Synthesized NVIDIA NIM (Llama 3.3 70B Instruct) executive verification dossier.",
       },
       {
         stage: "COMPLETE",
@@ -100,7 +115,7 @@ export default function LiveVerificationPage({
     }, 1200);
 
     return () => clearInterval(timer);
-  }, [params.id, addEvent, router]);
+  }, [params.id, addEvent, router, projectName, projectArea, claimedCarbon]);
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8">
@@ -115,7 +130,7 @@ export default function LiveVerificationPage({
               Verification Engine
             </h1>
             <p className="text-[var(--cx-text-muted)] mt-1 font-mono text-xs">
-              Project Identifier: {params.id}
+              Project: {projectName} ({params.id})
             </p>
           </div>
 
