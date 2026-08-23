@@ -2,9 +2,10 @@
 
 import { Html, Line, Sparkles } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import * as THREE from "three";
 import type { ColorRepresentation, Group } from "three";
-import { Color } from "three";
+import { Color, Vector3 } from "three";
 
 import {
   type WorldDestination,
@@ -12,7 +13,10 @@ import {
   type WorldState,
   WORLD_DESTINATIONS,
 } from "./navigation-state";
-import { BrunoKeyboardInput, BrunoZoneManager } from "./bruno-simon-adapter";
+import { Game } from "../bruno-world/Game.js";
+import { RayCursor } from "../bruno-world/RayCursor.js";
+import { Zones } from "../bruno-world/Zones.js";
+import { BrunoKeyboardInput } from "./bruno-simon-adapter";
 import { stepPlayer, type PlayerPosition, type WorldBounds } from "./movement";
 
 const WORLD_BOUNDS: WorldBounds = { minX: -26, maxX: 26, minZ: -26, maxZ: 26 };
@@ -24,6 +28,61 @@ type WorldSceneProps = {
   onNearbyChange: (destination: WorldDestination | null) => void;
   onInteract: (destination: WorldDestinationId) => void;
 };
+
+type BrunoRuntime = {
+  game: Game;
+  rayCursor: RayCursor;
+  zones: Zones;
+  zoneById: Map<WorldDestinationId, { id: WorldDestinationId; events: { on: (name: string, callback: (zone: unknown) => void) => unknown; off: (name: string, callback: (zone: unknown) => void) => unknown } }>;
+};
+
+const BrunoRuntimeContext = createContext<BrunoRuntime | null>(null);
+
+function useBrunoRuntime(): BrunoRuntime {
+  const runtime = useContext(BrunoRuntimeContext);
+  if (!runtime) throw new Error("Bruno runtime is unavailable outside the world canvas.");
+  return runtime;
+}
+
+function BrunoRuntime({ children }: { children: ReactNode }) {
+  const { camera, gl, scene, size } = useThree();
+  const runtime = useMemo(() => {
+    const game = Game.configure({ scene, camera, domElement: gl.domElement, width: size.width, height: size.height });
+    const zones = new Zones(game);
+    const zoneById = new Map<WorldDestinationId, { id: WorldDestinationId; events: { on: (name: string, callback: (zone: unknown) => void) => unknown; off: (name: string, callback: (zone: unknown) => void) => unknown } }>();
+    for (const destination of WORLD_DESTINATIONS) {
+      const zone = zones.create("cylinder", new Vector3(...destination.position), destination.radius) as { id: WorldDestinationId; events: { on: (name: string, callback: (zone: unknown) => void) => unknown; off: (name: string, callback: (zone: unknown) => void) => unknown } };
+      zone.id = destination.id;
+      zoneById.set(destination.id, zone);
+    }
+    return { game, rayCursor: new RayCursor(), zones, zoneById };
+  }, [camera, gl.domElement, scene, size.height, size.width]);
+
+  useEffect(() => {
+    const element = gl.domElement;
+    const updatePointer = (event: PointerEvent) => {
+      const bounds = element.getBoundingClientRect();
+      const next = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+      runtime.game.inputs.pointer.delta.x = next.x - runtime.game.inputs.pointer.current.x;
+      runtime.game.inputs.pointer.delta.y = next.y - runtime.game.inputs.pointer.current.y;
+      runtime.game.inputs.pointer.current.x = next.x;
+      runtime.game.inputs.pointer.current.y = next.y;
+    };
+    const onDown = (event: PointerEvent) => { updatePointer(event); runtime.rayCursor.testIntersects("start"); };
+    const onMove = (event: PointerEvent) => { updatePointer(event); runtime.rayCursor.testIntersects("change"); };
+    const onUp = (event: PointerEvent) => { updatePointer(event); runtime.rayCursor.testIntersects("end"); };
+    element.addEventListener("pointerdown", onDown);
+    element.addEventListener("pointermove", onMove);
+    element.addEventListener("pointerup", onUp);
+    return () => {
+      element.removeEventListener("pointerdown", onDown);
+      element.removeEventListener("pointermove", onMove);
+      element.removeEventListener("pointerup", onUp);
+    };
+  }, [gl.domElement, runtime]);
+
+  return <BrunoRuntimeContext.Provider value={runtime}>{children}</BrunoRuntimeContext.Provider>;
+}
 
 const treePositions: Array<[number, number]> = [
   [-23, -19], [-20, -14], [-22, -6], [-19, 2], [-22, 7], [-19, 20],
@@ -237,7 +296,23 @@ function InteractionZone({
   nearby: boolean;
   onInteract: (id: WorldDestinationId) => void;
 }) {
+  const { rayCursor } = useBrunoRuntime();
   const beaconRef = useRef<Group | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
+  const intersectRef = useRef<{ active: boolean } | null>(null);
+  useEffect(() => {
+    if (!meshRef.current) return;
+    const intersect = rayCursor.addIntersect({
+      active: nearby,
+      shape: meshRef.current,
+      onClick: () => { if (nearby) onInteract(destination.id); },
+    });
+    intersectRef.current = intersect;
+    return () => rayCursor.removeIntersect(intersect);
+  }, [destination.id, nearby, onInteract, rayCursor]);
+  useEffect(() => {
+    if (intersectRef.current) intersectRef.current.active = nearby;
+  }, [nearby]);
   useFrame(({ clock }) => {
     if (!beaconRef.current) return;
     beaconRef.current.rotation.y = clock.elapsedTime * (nearby ? 0.75 : 0.28);
@@ -246,7 +321,7 @@ function InteractionZone({
   });
   return (
     <group position={destination.position}>
-      <mesh onClick={(event) => { event.stopPropagation(); if (nearby) onInteract(destination.id); }} position={[0, 1.7, 0]}>
+      <mesh ref={meshRef} position={[0, 1.7, 0]}>
         <cylinderGeometry args={[2.6, 2.6, 3.7, 16, 1, true]} />
         <meshBasicMaterial color={destination.accent} transparent opacity={nearby ? 0.16 : 0.035} wireframe />
       </mesh>
@@ -285,22 +360,35 @@ function PlayerController({
   onInteract: (id: WorldDestinationId) => void;
 }) {
   const { camera, gl } = useThree();
+  const { game, zoneById } = useBrunoRuntime();
   const keys = useRef(new Set<string>());
   const keyboardRef = useRef<BrunoKeyboardInput | null>(null);
-  const zonesRef = useRef<BrunoZoneManager | null>(null);
   const position = useRef<PlayerPosition>([0, 2.7, 13]);
   const velocity = useRef({ forward: 0, strafe: 0 });
   const yaw = useRef(0);
   const pitch = useRef(-0.16);
   const nearbyRef = useRef<WorldDestinationId | null>(nearbyId);
-  if (!zonesRef.current) {
-    const manager = new BrunoZoneManager();
-    for (const destination of WORLD_DESTINATIONS) {
-      manager.create("cylinder", destination.id, destination.position, destination.radius);
-    }
-    zonesRef.current = manager;
-  }
   useEffect(() => { nearbyRef.current = nearbyId; }, [nearbyId]);
+  useEffect(() => {
+    const subscriptions = WORLD_DESTINATIONS.map((destination) => {
+      const zone = zoneById.get(destination.id);
+      if (!zone) return null;
+      const onEnter = () => {
+        nearbyRef.current = destination.id;
+        onNearbyChange(destination);
+      };
+      const onLeave = () => {
+        if (nearbyRef.current === destination.id) {
+          nearbyRef.current = null;
+          onNearbyChange(null);
+        }
+      };
+      zone.events.on("enter", onEnter);
+      zone.events.on("leave", onLeave);
+      return () => { zone.events.off("enter", onEnter); zone.events.off("leave", onLeave); };
+    });
+    return () => subscriptions.forEach((unsubscribe) => unsubscribe?.());
+  }, [onNearbyChange, zoneById]);
   useEffect(() => {
     if (!enabled) {
       keyboardRef.current?.dispose();
@@ -349,22 +437,17 @@ function PlayerController({
     const stepped = stepPlayer(position.current, velocity.current, input, yaw.current, delta, WORLD_BOUNDS);
     position.current = stepped.position;
     velocity.current = stepped.velocity;
+    game.player.position.x = stepped.position[0];
+    game.player.position.y = stepped.position[1];
+    game.player.position.z = stepped.position[2];
+    game.player.position2.x = stepped.position[0];
+    game.player.position2.y = stepped.position[2];
+    game.view.focusPoint.position.x = stepped.position[0];
+    game.view.focusPoint.position.y = stepped.position[1];
+    game.view.focusPoint.position.z = stepped.position[2];
     camera.position.set(...position.current);
     camera.rotation.set(pitch.current, yaw.current, 0, "YXZ");
-    zonesRef.current?.update(
-      stepped.position,
-      (zone) => {
-        const destination = WORLD_DESTINATIONS.find((item) => item.id === zone.id) ?? null;
-        nearbyRef.current = destination?.id ?? null;
-        onNearbyChange(destination);
-      },
-      (zone) => {
-        if (nearbyRef.current === zone.id) {
-          nearbyRef.current = null;
-          onNearbyChange(null);
-        }
-      },
-    );
+    game.tick(delta);
   });
   return null;
 }
@@ -372,7 +455,7 @@ function PlayerController({
 function WorldSceneContents({ state, introActive, nearbyId, onNearbyChange, onInteract }: WorldSceneProps) {
   const destinations = useMemo(() => WORLD_DESTINATIONS, []);
   return (
-    <>
+    <BrunoRuntime>
       <color attach="background" args={["#071c16"]} />
       <fog attach="fog" args={["#071c16", 30, 82]} />
       <hemisphereLight args={["#c9fff0", "#06130f", 1.45]} />
@@ -386,7 +469,7 @@ function WorldSceneContents({ state, introActive, nearbyId, onNearbyChange, onIn
       <Sparkles count={95} scale={[48, 10, 48]} size={1.35} speed={0.12} opacity={0.3} color="#b7f7dc" />
       {destinations.map((destination) => <InteractionZone key={destination.id} destination={destination} nearby={nearbyId === destination.id} onInteract={onInteract} />)}
       <PlayerController enabled={!introActive} nearbyId={nearbyId} onNearbyChange={onNearbyChange} onInteract={onInteract} />
-    </>
+    </BrunoRuntime>
   );
 }
 

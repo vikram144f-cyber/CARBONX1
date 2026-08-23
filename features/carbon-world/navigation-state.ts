@@ -21,8 +21,14 @@ export type WorldIncident = {
   status: string;
 };
 
+export type WorldProject = {
+  id: string;
+  name: string;
+};
+
 export type WorldState = {
   projectCount: number | null;
+  projects?: WorldProject[];
   activeIncidentCount: number | null;
   incidents: WorldIncident[];
   systemReady: boolean;
@@ -110,7 +116,11 @@ export function resolveWorldRoute(
 ): string {
   const firstIncident = state.incidents[0];
   if (destination === "portfolio") return "/?mode=command";
-  if (destination === "projects") return "/?mode=command&focus=projects";
+  if (destination === "projects") {
+    return state.projects?.[0]?.id
+      ? `/projects/${encodeURIComponent(state.projects[0].id)}`
+      : "/?mode=command&focus=projects";
+  }
   if (destination === "evidence") return "/documents";
   if (destination === "incidents") {
     return firstIncident?.id

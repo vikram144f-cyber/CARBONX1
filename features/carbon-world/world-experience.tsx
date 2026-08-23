@@ -28,6 +28,7 @@ const CarbonWorldScene = dynamic(
 
 const pendingWorldState: WorldState = {
   projectCount: null,
+  projects: [],
   activeIncidentCount: null,
   incidents: [],
   systemReady: false,
@@ -36,6 +37,7 @@ const pendingWorldState: WorldState = {
 function toWorldState(data: PortfolioResponse): WorldState {
   return {
     projectCount: data.summary.totalProjects,
+    projects: data.projects.map((project) => ({ id: project.id, name: project.name })),
     activeIncidentCount: data.summary.activeIncidents,
     incidents: data.activeIncidents.map((incident) => ({ id: incident.id, status: incident.status })),
     systemReady: true,
