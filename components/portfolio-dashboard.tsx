@@ -16,6 +16,8 @@ import {
   MapIcon,
   Plus,
   RefreshCw,
+  FileText,
+  ShieldCheck,
 } from "./icons";
 import {
   EmptyState,
@@ -239,20 +241,261 @@ export function PortfolioDashboard() {
     <div className="cx-portfolio-shell">
       <div className="cx-portfolio-orb cx-portfolio-orb-one" /><div className="cx-portfolio-orb cx-portfolio-orb-two" />
       <div className="relative mx-auto max-w-[1540px] space-y-5 px-4 py-5 sm:space-y-6 sm:px-7 sm:py-8 lg:px-9">
+        
+        {/* Telemetry Status Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#101b44]/80 px-4 py-2.5 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#48d7ae] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#48d7ae]" />
+            </span>
+            <span className="cx-mono text-[10px] font-bold tracking-wider text-white">
+              CARBONX COMMAND TELEMETRY
+            </span>
+            <span className="text-[10px] text-[var(--cx-text-muted)]">·</span>
+            <span className="cx-mono text-[10px] text-[#8fa8ff]">
+              MULTI-MODAL ENGINE ONLINE
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-[10px] cx-mono text-[#8fa8ff]">
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-3 h-3 text-[#48d7ae]" /> GEMINI 2.5 CONNECTED</span>
+            <span className="hidden sm:inline text-[var(--cx-border)]">|</span>
+            <span className="hidden sm:inline">SENTINEL-2 NDVI ACTIVE</span>
+            <span className="hidden sm:inline text-[var(--cx-border)]">|</span>
+            <span className="hidden sm:inline">NASA FIRMS LIVE</span>
+          </div>
+        </div>
+
         <header className="flex flex-col gap-6 rounded-[1.5rem] border border-white/[0.1] bg-[#172866]/75 px-5 py-6 shadow-[0_28px_90px_rgba(5,10,42,0.38)] backdrop-blur-xl sm:px-8 sm:py-8 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl"><p className="cx-eyebrow flex items-center gap-2 text-[#93aaff]"><Leaf className="h-3.5 w-3.5" /> CarbonX portfolio command</p><h1 className="mt-3 max-w-xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-5xl">A clearer view of your carbon assets.</h1><p className="mt-4 max-w-xl text-sm leading-6 text-[#aebbe1] sm:text-[15px]">Track project coverage, held inventory and environmental incidents from one evidence-led workspace.</p></div>
-          <div className="flex flex-wrap gap-2"><Link href="/projects/new" className="cx-portfolio-button cx-portfolio-button-primary"><Plus className="h-4 w-4" /> Submit project</Link><Link href="/projects/project_wayanad/evidence" className="cx-portfolio-button cx-portfolio-button-secondary">Evidence graph <ArrowRight className="h-4 w-4" /></Link></div>
+          <div className="max-w-2xl">
+            <p className="cx-eyebrow flex items-center gap-2 text-[#93aaff]">
+              <Leaf className="h-3.5 w-3.5" /> CarbonX Spatial Intelligence Station
+            </p>
+            <h1 className="mt-3 max-w-xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-5xl">
+              Global Carbon Asset Command
+            </h1>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-[#aebbe1] sm:text-[15px]">
+              Deterministic AI truth scoring, real-time NASA FIRMS wildfire alerts, and Sentinel-2 multi-spectral NDVI reconciliation across global credit portfolios.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            <Link href="/projects/new" className="cx-portfolio-button cx-portfolio-button-primary">
+              <Plus className="h-4 w-4" /> Submit New Project
+            </Link>
+            <Link href="/documents" className="cx-portfolio-button cx-portfolio-button-secondary">
+              <FileText className="h-4 w-4" /> Documents Archive
+            </Link>
+          </div>
         </header>
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Held inventory" value={`${formatQuantity(data.summary.totalHeldQuantity)} t`} detail={`${data.summary.holdingCount} holding records`} icon={<Database className="h-4 w-4" />} /><MetricCard label="Active incidents" value={formatQuantity(data.summary.activeIncidents)} detail="Open records requiring attention" icon={<AlertTriangle className="h-4 w-4" />} tone={data.summary.activeIncidents ? "red" : "green"} /><MetricCard label="Projects monitored" value={formatQuantity(data.summary.totalProjects)} detail={`${coverage}% with a persisted assessment`} icon={<MapIcon className="h-4 w-4" />} /><MetricCard label="Financial exposure" value={formatCurrency(data.summary.totalFinancialExposureEst)} detail={`${formatQuantity(data.summary.totalCreditExposure)} t estimated exposure`} icon={<Activity className="h-4 w-4" />} tone={data.summary.totalFinancialExposureEst ? "amber" : "green"} /></section>
+
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Held inventory" value={`${formatQuantity(data.summary.totalHeldQuantity)} t`} detail={`${data.summary.holdingCount} holding records`} icon={<Database className="h-4 w-4" />} />
+          <MetricCard label="Active incidents" value={formatQuantity(data.summary.activeIncidents)} detail="Open records requiring attention" icon={<AlertTriangle className="h-4 w-4" />} tone={data.summary.activeIncidents ? "red" : "green"} />
+          <MetricCard label="Projects monitored" value={formatQuantity(data.summary.totalProjects)} detail={`${coverage}% with a persisted assessment`} icon={<MapIcon className="h-4 w-4" />} />
+          <MetricCard label="Financial exposure" value={formatCurrency(data.summary.totalFinancialExposureEst)} detail={`${formatQuantity(data.summary.totalCreditExposure)} t estimated exposure`} icon={<Activity className="h-4 w-4" />} tone={data.summary.totalFinancialExposureEst ? "amber" : "green"} />
+        </section>
+
         <section className="grid gap-5 lg:grid-cols-[1.35fr_.95fr]">
-          <Panel className="relative min-h-[260px] overflow-hidden"><div className="cx-portfolio-panel-glow" /><div className="relative flex h-full flex-col justify-between gap-8 p-6 sm:p-8"><div><p className="cx-eyebrow text-[#8fa8ff]">Workspace overview</p><h2 className="mt-2 max-w-lg text-2xl font-semibold tracking-tight text-white sm:text-3xl">Evidence first. Decisions with context.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-[#aab7df]">The portfolio view keeps observed events, deterministic assessments and operational status in separate, readable layers.</p></div><div className="grid max-w-2xl gap-3 sm:grid-cols-3"><div className="rounded-xl border border-white/[0.08] bg-black/10 p-3"><p className="cx-label text-[8px] text-[#8fa8ff]">Projects</p><p className="cx-mono mt-2 text-lg font-semibold text-white">{data.summary.totalProjects}</p><p className="mt-1 text-[11px] text-[#93a1ca]">registered</p></div><div className="rounded-xl border border-white/[0.08] bg-black/10 p-3"><p className="cx-label text-[8px] text-[#8fa8ff]">Boundary quality</p><p className="cx-mono mt-2 text-lg font-semibold text-white">{data.projects.filter((project) => project.boundaryQuality === "HIGH").length}</p><p className="mt-1 text-[11px] text-[#93a1ca]">high quality records</p></div><div className="rounded-xl border border-white/[0.08] bg-black/10 p-3"><p className="cx-label text-[8px] text-[#8fa8ff]">Incidents</p><p className="cx-mono mt-2 text-lg font-semibold text-white">{data.summary.activeIncidents}</p><p className="mt-1 text-[11px] text-[#93a1ca]">active now</p></div></div></div></Panel>
-          <Panel><PanelHeader eyebrow="Portfolio posture" title="Risk distribution" detail="Current project-level assessments" /><div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6"><RiskRing distribution={data.riskDistribution} /><div className="min-w-0 flex-1"><RiskLegend distribution={data.riskDistribution} /></div></div></Panel>
+          <Panel className="relative min-h-[260px] overflow-hidden">
+            <div className="cx-portfolio-panel-glow" />
+            <div className="relative flex h-full flex-col justify-between gap-8 p-6 sm:p-8">
+              <div>
+                <p className="cx-eyebrow text-[#8fa8ff]">Workspace overview</p>
+                <h2 className="mt-2 max-w-lg text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                  Multi-Modal Truth Verification
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[#aab7df]">
+                  Reconciles GIS polygons, Sentinel-2 canopy health, and NASA FIRMS thermal telemetry with deterministic carbon density mathematics.
+                </p>
+              </div>
+              <div className="grid max-w-2xl gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="cx-label text-[8px] text-[#8fa8ff]">Projects</p>
+                  <p className="cx-mono mt-2 text-lg font-semibold text-white">{data.summary.totalProjects}</p>
+                  <p className="mt-1 text-[11px] text-[#93a1ca]">registered</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="cx-label text-[8px] text-[#8fa8ff]">Boundary quality</p>
+                  <p className="cx-mono mt-2 text-lg font-semibold text-white">{data.projects.filter((project) => project.boundaryQuality === "HIGH").length}</p>
+                  <p className="mt-1 text-[11px] text-[#93a1ca]">high quality records</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="cx-label text-[8px] text-[#8fa8ff]">Incidents</p>
+                  <p className="cx-mono mt-2 text-lg font-semibold text-white">{data.summary.activeIncidents}</p>
+                  <p className="mt-1 text-[11px] text-[#93a1ca]">active now</p>
+                </div>
+              </div>
+            </div>
+          </Panel>
+          <Panel>
+            <PanelHeader eyebrow="Portfolio posture" title="Risk distribution" detail="Current project-level assessments" />
+            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+              <RiskRing distribution={data.riskDistribution} />
+              <div className="min-w-0 flex-1">
+                <RiskLegend distribution={data.riskDistribution} />
+              </div>
+            </div>
+          </Panel>
         </section>
+
         <section className="grid gap-5 lg:grid-cols-[1.45fr_.75fr]">
-          <Panel className="overflow-hidden"><PanelHeader eyebrow="Project locations" title="Portfolio map" detail={`${data.projects.length} records from the Portfolio API`} action={<span className="cx-badge-provenance border-[#5c7cff]/25 bg-[#5c7cff]/10 text-[#a8b7ff]">WGS84 / project records</span>} /><div className="p-3 sm:p-4"><SatelliteMap centroid={[20, 25]} zoom={3} projectMarkers={projectMarkers} showQuickJump height="420px" className="rounded-[1rem]" /></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] px-5 py-4 sm:px-6"><div className="flex items-center gap-2 text-xs text-[#98a7d2]"><span className="h-2 w-2 rounded-full bg-[#48d7ae]" /> Real project records and current assessment fields</div><button type="button" onClick={() => void handleRefresh()} disabled={refreshing} className="cx-portfolio-button cx-portfolio-button-compact"><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Syncing…" : "Refresh environmental data"}</button></div>{ingestionStats ? <p className={`border-t border-white/[0.08] px-5 py-3 text-[11px] ${ingestionStats.status === "COMPLETED" ? "text-[#63e8c4]" : "text-[#f4b08a]"}`}>{ingestionStats.status === "COMPLETED" ? `${ingestionStats.fetched} observations fetched · ${ingestionStats.inserted} new · ${ingestionStats.skippedDuplicates} duplicates skipped` : ingestionStats.reason}</p> : null}</Panel>
-          <Panel><PanelHeader eyebrow="Operational signal" title="Active incidents" detail="No automatic conclusions" /><div className="p-5 sm:p-6">{activeIncidents.length === 0 ? <div className="flex min-h-[300px] flex-col items-center justify-center text-center"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#48d7ae]/20 bg-[#48d7ae]/10 text-[#63e8c4]"><CheckCircle2 className="h-5 w-5" /></span><p className="mt-4 text-sm font-semibold text-white">No active incidents</p><p className="mt-2 max-w-xs text-xs leading-5 text-[#94a4d1]">The portfolio currently has no open incident records requiring investigation.</p></div> : <div className="space-y-3">{activeIncidents.map((incident) => <Link key={incident.id} href={`/incidents/${incident.id}`} className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 hover:border-[#8298ff]/40 hover:bg-white/[0.04]"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-white">{incident.projectName}</p><p className="mt-1 text-[11px] text-[#93a2cc]">{incident.eventType} · {incident.status}</p></div><RiskBadge risk={incident.integrityRisk} /></div><div className="mt-4 flex items-center justify-between text-[11px] text-[#93a2cc]"><span>{incident.auditPriority ?? "Priority pending"}</span><span className="inline-flex items-center gap-1 text-[#a8b7ff]">Open <ArrowRight className="h-3 w-3" /></span></div></Link>)}{data.activeIncidents.length > activeIncidents.length ? <p className="pt-2 text-center text-[11px] text-[#93a2cc]">Showing {activeIncidents.length} of {data.activeIncidents.length} active incidents.</p> : null}</div>}</div></Panel>
+          <Panel className="overflow-hidden">
+            <PanelHeader eyebrow="Project locations" title="Portfolio map" detail={`${data.projects.length} records from the Portfolio API`} action={<span className="cx-badge-provenance border-[#5c7cff]/25 bg-[#5c7cff]/10 text-[#a8b7ff]">WGS84 / project records</span>} />
+            <div className="p-3 sm:p-4">
+              <SatelliteMap centroid={[20, 25]} zoom={3} projectMarkers={projectMarkers} showQuickJump height="420px" className="rounded-[1rem]" />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-2 text-xs text-[#98a7d2]">
+                <span className="h-2 w-2 rounded-full bg-[#48d7ae]" /> Real project records and current assessment fields
+              </div>
+              <button type="button" onClick={() => void handleRefresh()} disabled={refreshing} className="cx-portfolio-button cx-portfolio-button-compact">
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Syncing…" : "Refresh environmental data"}
+              </button>
+            </div>
+            {ingestionStats ? (
+              <p className={`border-t border-white/[0.08] px-5 py-3 text-[11px] ${ingestionStats.status === "COMPLETED" ? "text-[#63e8c4]" : "text-[#f4b08a]"}`}>
+                {ingestionStats.status === "COMPLETED" ? `${ingestionStats.fetched} observations fetched · ${ingestionStats.inserted} new · ${ingestionStats.skippedDuplicates} duplicates skipped` : ingestionStats.reason}
+              </p>
+            ) : null}
+          </Panel>
+
+          <Panel>
+            <PanelHeader eyebrow="Operational signal" title="Active incidents" detail="No automatic conclusions" />
+            <div className="p-5 sm:p-6">
+              {activeIncidents.length === 0 ? (
+                <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#48d7ae]/20 bg-[#48d7ae]/10 text-[#63e8c4]">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </span>
+                  <p className="mt-4 text-sm font-semibold text-white">No active incidents</p>
+                  <p className="mt-2 max-w-xs text-xs leading-5 text-[#94a4d1]">The portfolio currently has no open incident records requiring investigation.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeIncidents.map((incident) => (
+                    <Link key={incident.id} href={`/incidents/${incident.id}`} className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 hover:border-[#8298ff]/40 hover:bg-white/[0.04]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{incident.projectName}</p>
+                          <p className="mt-1 text-[11px] text-[#93a2cc]">{incident.eventType} · {incident.status}</p>
+                        </div>
+                        <RiskBadge risk={incident.integrityRisk} />
+                      </div>
+                      <div className="mt-4 flex items-center justify-between text-[11px] text-[#93a2cc]">
+                        <span>{incident.auditPriority ?? "Priority pending"}</span>
+                        <span className="inline-flex items-center gap-1 text-[#a8b7ff]">Open <ArrowRight className="h-3 w-3" /></span>
+                      </div>
+                    </Link>
+                  ))}
+                  {data.activeIncidents.length > activeIncidents.length ? (
+                    <p className="pt-2 text-center text-[11px] text-[#93a2cc]">Showing {activeIncidents.length} of {data.activeIncidents.length} active incidents.</p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </Panel>
         </section>
-        <section className="cx-portfolio-panel overflow-hidden"><div className="flex flex-col gap-5 border-b border-white/[0.08] px-5 py-5 lg:flex-row lg:items-end lg:justify-between sm:px-6"><div><p className="cx-eyebrow text-[#8fa8ff]">Portfolio register</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Projects</h2><p className="mt-1 text-xs text-[#91a0cc]">{projects.length} of {data.projects.length} registered project records shown</p></div><div className="flex flex-wrap items-center gap-2"><div className="flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/10 p-1">{REGION_FILTERS.map((filter) => <button key={filter.id} type="button" onClick={() => setRegionFilter(filter.id)} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-medium transition ${regionFilter === filter.id ? "bg-[#5c7cff]/20 text-[#b7c4ff]" : "text-[#91a0cc] hover:text-white"}`}>{filter.label}</button>)}</div><select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} aria-label="Filter by risk" className="cx-portfolio-control"><option value="ALL">All risk levels</option><option value="UNASSESSED">Awaiting assessment</option><option value="LOW">Low risk</option><option value="MEDIUM">Medium risk</option><option value="HIGH">High risk</option><option value="CRITICAL">Critical risk</option></select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects…" aria-label="Search projects" className="cx-portfolio-control min-w-[180px]" /><Link href="/projects/new" className="cx-portfolio-button cx-portfolio-button-compact"><Plus className="h-3.5 w-3.5" /> New project</Link></div></div>{projects.length === 0 ? <EmptyState title="No matching projects" detail="No registered project matches the current filter parameters." /> : <div className="overflow-x-auto"><table className="cx-portfolio-table"><thead><tr><th>Project</th><th>Region</th><th className="text-right">Held inventory</th><th>Risk</th><th>Portfolio state</th><th>Latest assessment</th><th className="text-right">Open</th></tr></thead><tbody>{projects.map((project) => <tr key={project.id}><td><Link href={`/projects/${project.id}`} className="font-semibold text-white hover:text-[#b7c4ff]">{project.name}</Link><p className="cx-mono mt-1 text-[10px] text-[#7484b5]">{project.registryId ?? project.id}</p></td><td><span className="text-xs text-[#aebbe1]">{project.countryCode ?? "—"}</span><p className="mt-1 text-[10px] text-[#7484b5]">{project.boundaryQuality ? `Boundary ${project.boundaryQuality.toLowerCase()}` : "Boundary quality unavailable"}</p></td><td className="text-right"><span className="cx-mono text-sm font-semibold text-white">{formatQuantity(project.totalHeldQuantity)}</span><span className="ml-1 text-[10px] text-[#7484b5]">t</span><p className="mt-1 text-[10px] text-[#7484b5]">{project.holdingCount} holding{project.holdingCount === 1 ? "" : "s"}</p></td><td><RiskBadge risk={project.risk} /></td><td><StatePill state={project.projectState} /></td><td><span className="text-xs text-[#aebbe1]">{project.latestAssessmentAt ? formatDate(project.latestAssessmentAt) : "Not assessed"}</span>{project.activeIncidentCount ? <p className="mt-1 text-[10px] text-[#ff9eaa]">{project.activeIncidentCount} active incident{project.activeIncidentCount === 1 ? "" : "s"}</p> : <p className="mt-1 text-[10px] text-[#7484b5]">No active incidents</p>}</td><td className="text-right"><Link href={`/projects/${project.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#a8b7ff] hover:text-white">View <ArrowRight className="h-3.5 w-3.5" /></Link></td></tr>)}</tbody></table></div>}</section>
+
+        {/* Portfolio Projects Table */}
+        <section className="cx-portfolio-panel overflow-hidden">
+          <div className="flex flex-col gap-5 border-b border-white/[0.08] px-5 py-5 lg:flex-row lg:items-end lg:justify-between sm:px-6">
+            <div>
+              <p className="cx-eyebrow text-[#8fa8ff]">Portfolio register</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Monitored Carbon Projects</h2>
+              <p className="mt-1 text-xs text-[#91a0cc]">{projects.length} of {data.projects.length} registered project records shown</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/10 p-1">
+                {REGION_FILTERS.map((filter) => (
+                  <button key={filter.id} type="button" onClick={() => setRegionFilter(filter.id)} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-medium transition ${regionFilter === filter.id ? "bg-[#5c7cff]/20 text-[#b7c4ff]" : "text-[#91a0cc] hover:text-white"}`}>
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} aria-label="Filter by risk" className="cx-portfolio-control">
+                <option value="ALL">All risk levels</option>
+                <option value="UNASSESSED">Awaiting assessment</option>
+                <option value="LOW">Low risk</option>
+                <option value="MEDIUM">Medium risk</option>
+                <option value="HIGH">High risk</option>
+                <option value="CRITICAL">Critical risk</option>
+              </select>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects…" aria-label="Search projects" className="cx-portfolio-control min-w-[180px]" />
+              <Link href="/projects/new" className="cx-portfolio-button cx-portfolio-button-compact">
+                <Plus className="h-3.5 w-3.5" /> New project
+              </Link>
+            </div>
+          </div>
+
+          {projects.length === 0 ? (
+            <EmptyState title="No matching projects" detail="No registered project matches the current filter parameters." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="cx-portfolio-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Region & Provenance</th>
+                    <th className="text-right">Held inventory</th>
+                    <th>Integrity Risk</th>
+                    <th>Portfolio state</th>
+                    <th>Verification Dossier</th>
+                    <th className="text-right">Quick Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((project) => (
+                    <tr key={project.id} className="hover:bg-white/[0.03] transition group">
+                      <td>
+                        <Link href={`/projects/${project.id}`} className="font-semibold text-white hover:text-[#b7c4ff] transition">
+                          {project.name}
+                        </Link>
+                        <p className="cx-mono mt-1 text-[10px] text-[#7484b5]">{project.registryId ?? project.id}</p>
+                      </td>
+                      <td>
+                        <span className="text-xs text-[#aebbe1]">{project.countryCode ?? "—"}</span>
+                        <p className="mt-1 text-[10px] text-[#7484b5]">{project.boundaryQuality ? `Boundary ${project.boundaryQuality.toLowerCase()}` : "Boundary quality unavailable"}</p>
+                      </td>
+                      <td className="text-right">
+                        <span className="cx-mono text-sm font-semibold text-white">{formatQuantity(project.totalHeldQuantity)}</span>
+                        <span className="ml-1 text-[10px] text-[#7484b5]">t</span>
+                        <p className="mt-1 text-[10px] text-[#7484b5]">{project.holdingCount} holding{project.holdingCount === 1 ? "" : "s"}</p>
+                      </td>
+                      <td><RiskBadge risk={project.risk} /></td>
+                      <td><StatePill state={project.projectState} /></td>
+                      <td>
+                        <Link
+                          href={`/projects/${project.id}/results`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#ed8e59]/30 bg-[#ed8e59]/10 text-xs font-semibold text-[#f4b08a] hover:bg-[#ed8e59]/20 transition"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Truth Score →</span>
+                        </Link>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/projects/${project.id}/evidence`}
+                            className="cx-mono text-[10px] px-2 py-1 rounded border border-white/10 bg-white/5 text-[#aebbe1] hover:text-white hover:border-[#5c7cff]/40 transition"
+                          >
+                            Evidence
+                          </Link>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="cx-mono text-[10px] px-2 py-1 rounded border border-[#5c7cff]/30 bg-[#5c7cff]/10 text-[#a8b7ff] hover:bg-[#5c7cff]/20 transition inline-flex items-center gap-1"
+                          >
+                            <span>Spatial</span>
+                            <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
