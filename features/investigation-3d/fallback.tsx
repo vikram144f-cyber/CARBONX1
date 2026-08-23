@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { CARBONX_THEME } from "../../lib/theme";
 import {
   calculateSceneBounds,
   projectBoundaryToScene,
@@ -41,8 +42,8 @@ export function Investigation2DFallback({
     .filter((item): item is { hotspot: InvestigationHotspot; point: number[] } => Boolean(item));
 
   return (
-    <div className="fixed inset-0 z-50 overflow-auto bg-[#06100d] p-4 text-slate-100 sm:p-8">
-      <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-[#0b1915] p-5 shadow-2xl sm:p-8">
+    <div className="fixed inset-0 z-50 overflow-auto bg-cx-bg p-4 text-slate-100 sm:p-8">
+      <div className="cx-panel mx-auto max-w-5xl rounded-3xl p-5 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="cx-label text-amber-200/80">2D investigation fallback</p>
@@ -62,12 +63,12 @@ export function Investigation2DFallback({
               <span>Boundary v{data.project.boundary?.version ?? "—"}</span>
               <span>{data.project.boundary?.quality ?? "Boundary unavailable"}</span>
             </div>
-            <svg viewBox="0 0 100 100" className="aspect-square w-full rounded-xl bg-[#081a15]" role="img" aria-label="2D project boundary and evidence hotspots">
+            <svg viewBox="0 0 100 100" className="aspect-square w-full rounded-xl bg-cx-purple" role="img" aria-label="2D project boundary and evidence hotspots">
               {rings.map((ring, index) => (
                 <polygon key={index} points={ring.map((point) => toSvg(point).join(",")).join(" ")} fill="rgba(52,211,153,0.12)" stroke="rgba(110,231,183,0.85)" strokeWidth="0.5" />
               ))}
               {hotspotPoints.map(({ hotspot, point }) => (
-                <circle key={hotspot.id} cx={point[0]} cy={point[1]} r="2.2" fill={hotspot.kind === "RISK" ? "#fb7185" : hotspot.kind === "EVIDENCE" ? "#60a5fa" : "#fbbf24"} onClick={() => setSelected(hotspot)} className="cursor-pointer" />
+                <circle key={hotspot.id} cx={point[0]} cy={point[1]} r="2.2" fill={hotspot.kind === "RISK" ? CARBONX_THEME.critical : hotspot.kind === "EVIDENCE" ? CARBONX_THEME.info : CARBONX_THEME.warning} onClick={() => setSelected(hotspot)} className="cursor-pointer" />
               ))}
             </svg>
             <p className="mt-3 text-xs text-slate-500">Boundary source: {data.project.boundary?.source ?? "not recorded"}</p>

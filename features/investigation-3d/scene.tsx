@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef } from "react";
 import type { PerspectiveCamera } from "three";
 import { Color, Vector3 } from "three";
 
+import { CARBONX_THEME } from "../../lib/theme";
+
 import {
   calculateSceneBounds,
   clampScenePosition,
@@ -30,13 +32,13 @@ function Terrain({ bounds }: { bounds: SceneBounds }) {
   return (
     <mesh rotation-x={-Math.PI / 2} position={[(bounds.minX + bounds.maxX) / 2, -0.15, (bounds.minZ + bounds.maxZ) / 2]} receiveShadow>
       <planeGeometry args={[width, depth, 12, 12]} />
-      <meshStandardMaterial color="#0b2a20" roughness={0.95} metalness={0.05} />
+      <meshStandardMaterial color={CARBONX_THEME.worldTerrain} roughness={0.95} metalness={0.05} />
     </mesh>
   );
 }
 
 function BoundaryLines({ rings }: { rings: SceneRing[] }) {
-  return <>{rings.map((ring, index) => <Line key={index} points={ring.map(([x, z]) => [x, 0.12, z] as [number, number, number])} color="#6ee7b7" lineWidth={1.5} />)}</>;
+  return <>{rings.map((ring, index) => <Line key={index} points={ring.map(([x, z]) => [x, 0.12, z] as [number, number, number])} color={CARBONX_THEME.worldGlowSoft} lineWidth={1.5} />)}</>;
 }
 
 function Hotspot({
@@ -48,7 +50,7 @@ function Hotspot({
   position: [number, number, number];
   onSelect: (hotspot: InvestigationHotspot) => void;
 }) {
-  const color = hotspot.kind === "RISK" ? "#fb7185" : hotspot.kind === "EVIDENCE" ? "#60a5fa" : "#fbbf24";
+  const color = hotspot.kind === "RISK" ? CARBONX_THEME.critical : hotspot.kind === "EVIDENCE" ? CARBONX_THEME.info : CARBONX_THEME.warning;
   return (
     <group position={position}>
       <mesh onClick={(event) => { event.stopPropagation(); onSelect(hotspot); }}>
@@ -68,7 +70,7 @@ function AnomalyZone({ position, visible }: { position: [number, number, number]
   if (!visible || !position) return null;
   return <mesh rotation-x={-Math.PI / 2} position={[position[0], 0.16, position[2]]}>
     <ringGeometry args={[1.2, 2.1, 48]} />
-    <meshBasicMaterial color="#fb7185" transparent opacity={0.32} />
+    <meshBasicMaterial color={CARBONX_THEME.critical} transparent opacity={0.32} />
   </mesh>;
 }
 
@@ -158,10 +160,10 @@ function SceneContents({ data, mode, onSequenceComplete, onSelectHotspot }: Scen
   );
   return (
     <>
-      <color attach="background" args={["#04100c"]} />
-      <fog attach="fog" args={["#04100c", 22, 80]} />
+      <color attach="background" args={[CARBONX_THEME.worldFog]} />
+      <fog attach="fog" args={[CARBONX_THEME.worldFog, 22, 80]} />
       <ambientLight intensity={0.8} />
-      <directionalLight position={[12, 20, 7]} intensity={2.4} color="#d9fff0" castShadow />
+      <directionalLight position={[12, 20, 7]} intensity={2.4} color={CARBONX_THEME.highlight} castShadow />
       <Terrain bounds={bounds} />
       <BoundaryLines rings={rings} />
       <AnomalyZone position={eventPoint ? [eventPoint[0], 0, eventPoint[1]] : null} visible={data.anomalyVisible} />

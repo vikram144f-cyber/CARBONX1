@@ -11,11 +11,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isDocuments = pathname === "/documents";
 
   return (
-    <div className="min-h-screen bg-[#07110f] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.08),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(30,64,175,0.08),transparent_32%)]" />
+    <div className="cx-app-shell min-h-screen text-slate-100">
+      <div className="cx-ambient pointer-events-none fixed inset-0" />
       <div className="relative flex min-h-screen flex-col lg:flex-row">
         {!isWorldHome ? (
-          <aside className="border-b border-white/10 bg-[#091512]/95 px-5 py-4 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col lg:border-b-0 lg:border-r lg:px-6 lg:py-7">
+          <aside className="cx-surface-elevated border-b border-white/10 px-5 py-4 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col lg:border-b-0 lg:border-r lg:px-6 lg:py-7">
             <Link href="/?mode=command" className="group flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-400/10 text-sm font-bold text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
                 CX

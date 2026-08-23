@@ -9,6 +9,7 @@ import { incidentResponseSchema } from "../lib/validations/incidents";
 import { auditActionResponseSchema } from "../lib/validations/audit";
 import { mapIncidentToSceneState } from "../features/investigation-3d/scene-state";
 import { EvidenceBadge, EmptyState, ErrorState, formatCurrency, formatDate, formatPercent, LoadingState, MetricCard, Panel, PanelHeading, RiskBadge } from "./ui";
+import type { FirmsPoint, GeoJsonFeature, SatelliteMapProps } from "./satellite-map";
 
 const Investigation3DOverlay = dynamic(
   () => import("../features/investigation-3d/overlay").then((module) => module.Investigation3DOverlay),
@@ -17,6 +18,18 @@ const Investigation3DOverlay = dynamic(
     loading: () => <div className="fixed inset-0 z-50 grid place-items-center bg-[#04100c] text-sm text-slate-400">Loading investigation canvas…</div>,
   },
 );
+
+const SatelliteMap = dynamic(
+  () => import("./satellite-map").then((m) => m.SatelliteMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="cx-panel flex items-center justify-center rounded-xl text-xs" style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        Loading satellite view…
+      </div>
+    ),
+  },
+) as React.ComponentType<SatelliteMapProps>;
 
 export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { incidentId: string; autoOpen3D?: boolean }) {
   const [data, setData] = useState<IncidentResponse | null>(null);
@@ -78,12 +91,69 @@ export function IncidentInvestigation({ incidentId, autoOpen3D = false }: { inci
 
   const assessment = data.latestAssessment;
 
+  // ── Build satellite map props from real incident data ──────────────────
+  const eventGeomForCentroid = data.event.geometry as { type?: string; coordinates?: number[] } | null;
+  const fallbackLng = (eventGeomForCentroid?.coordinates?.[0]) ?? 0;
+  const fallbackLat = (eventGeomForCentroid?.coordinates?.[1]) ?? 0;
+  const centroid: [number, number] = [
+    data.project.centroidLng ?? fallbackLng,
+    data.project.centroidLat ?? fallbackLat,
+  ];
+
+
+  // Project boundary GeoJSON — sourced from currentBoundary.geojson
+  const boundary: GeoJsonFeature | null =
+    data.project.currentBoundary
+      ? (data.project.currentBoundary.geojson as GeoJsonFeature)
+      : null;
+
+  // FIRMS event point
+  const eventGeom = data.event.geometry as { type?: string; coordinates?: number[] } | null;
+  const firmsPoints: FirmsPoint[] =
+    eventGeom?.type === "Point" && Array.isArray(eventGeom.coordinates)
+      ? [
+          {
+            id: data.event.id,
+            longitude: eventGeom.coordinates[0],
+            latitude: eventGeom.coordinates[1],
+            sourceConfidence: data.event.sourceConfidence,
+            observedAt: data.event.observedAt,
+            sourceInstrument: data.event.sourceInstrument,
+            sourceName: data.event.sourceName,
+          },
+        ]
+      : [];
+
   return <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
     {show3D ? <Investigation3DOverlay data={mapIncidentToSceneState(data)} onClose={() => setShow3D(false)} /> : null}
     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500"><Link href="/?mode=command" className="text-emerald-300/70 hover:text-emerald-200">Portfolio</Link><span>/</span><Link href={`/projects/${data.projectId}`} className="text-emerald-300/70 hover:text-emerald-200">{data.project.name}</Link><span>/</span><span>Incident {data.id}</span></div>
     <header className="mt-6 flex flex-col gap-5 border-b border-white/10 pb-8 xl:flex-row xl:items-end xl:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-red-200/80">Investigation center</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300">{data.status.replaceAll("_", " ")}</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">{data.event.type} at {data.project.name}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Observed by {data.event.sourceName} · acquired {formatDate(data.event.acquiredAt)} · source confidence {data.event.sourceConfidence === null ? "not recorded" : data.event.sourceConfidence.toFixed(2)}</p></div><div className="flex flex-col items-start gap-3 xl:items-end"><div className="flex flex-wrap items-center gap-3"><RiskBadge risk={assessment?.integrityRisk ?? null} />{data.project.currentBoundary ? <button type="button" onClick={() => setShow3D(true)} className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3.5 py-2.5 text-xs font-semibold text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-300/20">Investigate in 3D</button> : null}{data.status === "UNDER_ASSESSMENT" ? <button type="button" onClick={() => void flagForAudit()} disabled={auditState.status === "submitting"} className="inline-flex items-center gap-2 rounded-lg border border-red-300/30 bg-red-300/10 px-3.5 py-2.5 text-xs font-semibold text-red-100 transition hover:border-red-200/50 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-70">{auditState.status === "submitting" ? <span className="h-3 w-3 animate-spin rounded-full border border-red-100/30 border-t-red-100" /> : null}{auditState.status === "submitting" ? "Recording…" : "Flag for Audit"}</button> : data.status === "AUDIT_RECOMMENDED" ? <span className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-200">Audit recommended</span> : null}</div>{auditState.message ? <p aria-live="polite" className={`max-w-xs text-right text-xs ${auditState.status === "error" ? "text-red-200" : auditState.status === "success" ? "text-emerald-200" : "text-slate-400"}`}>{auditState.message}</p> : null}</div></header>
 
     <section className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><MetricCard label="Physical impact" value={assessment?.estimatedImpactHa === null || !assessment ? "—" : `${assessment.estimatedImpactHa.toFixed(2)} ha`} detail={assessment ? "ESTIMATED buffered overlap" : "No deterministic assessment"} tone={assessment ? "amber" : "neutral"} /><MetricCard label="Impact share" value={formatPercent(assessment?.impactPct ?? null)} detail="Deterministic project-area ratio" tone="amber" /><MetricCard label="Credit exposure" value={assessment?.creditExposure === null || !assessment ? "—" : `${assessment.creditExposure.toFixed(2)} credits`} detail="Held quantity × impact share" tone="red" /><MetricCard label="Financial exposure" value={formatCurrency(assessment?.financialExposureEst ?? null, assessment?.financialCurrency ?? "USD")} detail="ESTIMATED reference valuation" tone="amber" /><MetricCard label="Evidence confidence" value={assessment?.evidenceConfidence ?? "—"} detail={assessment?.evidenceConfidenceScore === null || !assessment ? "Not assessed" : `Score ${assessment.evidenceConfidenceScore.toFixed(0)} / 100`} tone={assessment?.evidenceConfidence === "HIGH" ? "green" : "blue"} /></section>
+
+    {/* ── Satellite investigation map ────────────────────────────────── */}
+    <Panel className="mt-7 overflow-hidden">
+      <PanelHeading
+        eyebrow="Satellite view · Esri World Imagery"
+        title="Incident location & evidence"
+        detail="Event point · project boundary · ESTIMATED impact zone"
+      />
+      <div className="px-5 pb-5 sm:px-6">
+        <SatelliteMap
+          centroid={centroid}
+          zoom={11}
+          boundary={boundary}
+          firmsPoints={firmsPoints}
+          height="360px"
+        />
+        <p className="mt-3 text-[10px] text-slate-600">
+          Satellite imagery: Esri World Imagery — Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP.
+          {firmsPoints.length > 0
+            ? " · FIRMS point is a thermal anomaly detection. The buffered zone is ESTIMATED — not an exact burned area."
+            : " · No FIRMS point geometry available for this event."}
+        </p>
+      </div>
+    </Panel>
 
     <div className="mt-7 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]"><Panel><PanelHeading eyebrow="Event provenance" title="Observed source context" detail="Source facts are distinct from calculated impact" /><div className="grid gap-5 px-5 py-6 sm:grid-cols-2 sm:px-6"><div><p className="cx-label">Source</p><p className="mt-2 text-sm text-slate-200">{data.event.sourceName}</p><p className="mt-1 text-xs text-slate-500">{data.event.sourceInstrument ?? "Instrument not recorded"}</p></div><div><p className="cx-label">Observation</p><p className="mt-2 text-sm text-slate-200">{formatDate(data.event.observedAt)}</p><p className="mt-1 text-xs text-slate-500">{data.event.originType} · {data.event.createdByType}</p></div><div><p className="cx-label">Boundary evidence</p><p className="mt-2 text-sm text-slate-200">{assessment ? <EvidenceBadge label={assessment.evidence[0]?.label ?? "ESTIMATED"} /> : "—"}</p><p className="mt-2 text-xs leading-5 text-slate-500">Buffered point detections are estimates and must not be read as exact burned area.</p></div><div><p className="cx-label">Audit priority</p><p className="mt-2 text-sm font-medium text-slate-200">{assessment?.auditPriority ?? "—"}</p><p className="mt-1 text-xs text-slate-500">Deterministic risk and evidence matrix</p></div></div></Panel><Panel><PanelHeading eyebrow="Assessment provenance" title="Method and uncertainty" detail="All values originate from RiskAssessment" />{!assessment ? <EmptyState title="Assessment unavailable" detail="This incident has context but no persisted deterministic assessment yet." /> : <div className="space-y-5 px-5 py-6 sm:px-6"><div className="grid gap-4 sm:grid-cols-2"><div><p className="cx-label">Engine version</p><p className="mt-2 font-mono text-xs text-slate-300">{assessment.engineVersion}</p></div><div><p className="cx-label">Methodology</p><p className="mt-2 font-mono text-xs text-slate-300">{assessment.methodologyVersion}</p></div></div><div><p className="cx-label">Uncertainty disclosure</p><p className="mt-2 text-sm leading-6 text-slate-300">{assessment.uncertaintyNotes ?? "No uncertainty note recorded."}</p></div><div><p className="cx-label">Created by</p><p className="mt-2 text-xs text-slate-400">{assessment.createdByType} · {formatDate(assessment.createdAt)}</p></div></div>}</Panel></div>
 

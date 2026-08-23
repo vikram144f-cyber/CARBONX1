@@ -11,7 +11,7 @@ export function InteractionPrompt({
 }) {
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-6 z-20 flex justify-center sm:bottom-8">
-      <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-white/15 bg-[#07110f]/90 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-5">
+      <div className="cx-surface-elevated pointer-events-auto w-full max-w-xl rounded-2xl p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: destination.accent }}>

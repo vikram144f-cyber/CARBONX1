@@ -15,7 +15,7 @@ export function CommandModeFallback({
   initialData?: PortfolioResponse | null;
 }) {
   return (
-    <div className="min-h-screen bg-[#07110f]">
+    <div className="min-h-screen bg-cx-bg">
       <div className="border-b border-emerald-300/15 bg-emerald-300/[0.06] px-5 py-3 sm:px-8">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200">

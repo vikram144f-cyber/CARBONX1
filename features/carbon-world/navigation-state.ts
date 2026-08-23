@@ -42,7 +42,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Open the live portfolio command view.",
     position: [-15, 0, -9],
     radius: 4.5,
-    accent: "#6ee7b7",
+    accent: CARBONX_THEME.accent,
   },
   {
     id: "projects",
@@ -51,7 +51,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Explore carbon projects and boundary provenance.",
     position: [15, 0, -7],
     radius: 4.5,
-    accent: "#67e8f9",
+    accent: CARBONX_THEME.highlight,
   },
   {
     id: "incidents",
@@ -60,7 +60,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Review environmental incidents and empty-state truth.",
     position: [14, 0, 10],
     radius: 4.5,
-    accent: "#fbbf24",
+    accent: CARBONX_THEME.warning,
   },
   {
     id: "evidence",
@@ -69,7 +69,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Evidence and document management readiness.",
     position: [-13, 0, 12],
     radius: 4.5,
-    accent: "#93c5fd",
+    accent: CARBONX_THEME.info,
   },
   {
     id: "audit",
@@ -78,7 +78,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Open the human audit workflow for an active incident.",
     position: [0, 0, -18],
     radius: 4.5,
-    accent: "#fb7185",
+    accent: CARBONX_THEME.critical,
   },
   {
     id: "investigation",
@@ -87,7 +87,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
     description: "Launch the 3D investigation for a valid incident.",
     position: [0, 0, 18],
     radius: 4.5,
-    accent: "#c4b5fd",
+    accent: CARBONX_THEME.highlight,
   },
 ];
 
@@ -143,3 +143,4 @@ export function worldStatusLine(state: WorldState): string {
   }
   return `${state.projectCount} projects monitored · ${state.activeIncidentCount} active incidents`;
 }
+import { CARBONX_THEME } from "../../lib/theme";

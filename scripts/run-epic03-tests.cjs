@@ -35,6 +35,7 @@ const sourceFiles = [
   "tests/world-navigation.test.ts",
   "features/carbon-world/navigation-state.ts",
   "features/carbon-world/movement.ts",
+  "features/carbon-world/rover-drive.ts",
   "features/carbon-world/bruno-simon-adapter.ts",
   "tests/firms-csv.test.ts",
   "lib/services/firms-csv.ts",

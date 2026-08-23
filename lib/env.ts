@@ -12,6 +12,9 @@ const envSchema = z.object({
   BLOCKCHAIN_CONTRACT_ADDRESS: z
     .string()
     .regex(/^0x[0-9a-fA-F]{40}$/, "must be a valid EVM contract address"),
+  // Dev-only: guards the /api/admin/refresh endpoint.
+  // Must never use NEXT_PUBLIC_ prefix.
+  ADMIN_REFRESH_TOKEN: z.string().min(8).optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

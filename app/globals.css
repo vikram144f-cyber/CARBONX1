@@ -4,6 +4,28 @@
 
 :root {
   color-scheme: dark;
+
+  --cx-bg: #1b1931;
+  --cx-bg-deep: #121025;
+  --cx-purple: #44174e;
+  --cx-plum: #662249;
+  --cx-rose: #a34054;
+  --cx-accent: #ed8e59;
+  --cx-accent-hover: #f5ad7a;
+  --cx-highlight: #e8bccb;
+  --cx-text: #fff4ed;
+  --cx-text-secondary: #e8d5dd;
+  --cx-text-muted: #b7a5b7;
+  --cx-success: #9fc6a8;
+  --cx-warning: #ed8e59;
+  --cx-critical: #e56b78;
+  --cx-info: #c3a8dc;
+  --cx-border: rgba(232, 188, 203, 0.16);
+  --cx-border-strong: rgba(237, 142, 89, 0.38);
+  --cx-surface: rgba(27, 25, 49, 0.84);
+  --cx-surface-elevated: rgba(68, 23, 78, 0.72);
+  --cx-shadow: 0 18px 60px rgba(10, 7, 24, 0.32);
+  --cx-glow: 0 0 32px rgba(237, 142, 89, 0.16);
 }
 
 * {
@@ -12,10 +34,127 @@
 
 body {
   margin: 0;
-  background: #020617;
-  color: #f8fafc;
+  background:
+    radial-gradient(circle at 76% -12%, rgba(237, 142, 89, 0.3), transparent 34%),
+    radial-gradient(circle at 4% 100%, rgba(163, 64, 84, 0.28), transparent 36%),
+    linear-gradient(145deg, #ed8e59 0%, #a34054 20%, #662249 52%, #1b1931 100%);
+  background-attachment: fixed;
+  color: var(--cx-text);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+::selection {
+  background: rgba(237, 142, 89, 0.34);
+  color: var(--cx-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cx-accent);
+  outline-offset: 3px;
+}
+
+button,
+a,
+input,
+select {
+  transition-duration: 180ms;
+  transition-property: background-color, border-color, box-shadow, color, transform;
+  transition-timing-function: ease-out;
+}
+
+.cx-app-shell {
+  background: linear-gradient(145deg, rgba(68, 23, 78, 0.14), rgba(18, 16, 37, 0.74) 54%, rgba(27, 25, 49, 0.9));
+  color: var(--cx-text);
+}
+
+.cx-ambient {
+  background:
+    radial-gradient(circle at 80% 0%, rgba(237, 142, 89, 0.16), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(163, 64, 84, 0.2), transparent 32%);
+}
+
+.cx-panel {
+  background: var(--cx-surface);
+  border: 1px solid var(--cx-border);
+  box-shadow: var(--cx-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.cx-surface-elevated {
+  background: var(--cx-surface-elevated);
+  border: 1px solid var(--cx-border);
+  box-shadow: var(--cx-shadow);
+}
+
+.cx-accent-text { color: var(--cx-accent); }
+.cx-muted-text { color: var(--cx-text-muted); }
+
+/* Compatibility remap for existing utility classes. The product now has one
+   palette even where older components still use semantic utility names. */
+[class~="bg-[#020617]"],
+[class~="bg-[#020b08]"],
+[class~="bg-[#04100c]"],
+[class~="bg-[#04120e]"],
+[class~="bg-[#06100d]"],
+[class~="bg-[#07110f]"],
+[class~="bg-[#071610]"],
+[class~="bg-[#081a15]"],
+[class~="bg-[#091512]"],
+[class~="bg-[#0b1915]"] {
+  background-color: var(--cx-bg) !important;
+}
+
+[class~="border-white/10"],
+[class~="border-white/15"],
+[class~="border-white/5"] {
+  border-color: var(--cx-border) !important;
+}
+
+[class~="text-white"],
+[class~="text-slate-100"],
+[class~="text-slate-200"] { color: var(--cx-text) !important; }
+[class~="text-slate-300"],
+[class~="text-slate-400"] { color: var(--cx-text-secondary) !important; }
+[class~="text-slate-500"],
+[class~="text-slate-600"] { color: var(--cx-text-muted) !important; }
+
+[class~="text-emerald-100"],
+[class~="text-emerald-200"],
+[class~="text-emerald-300"],
+[class~="text-emerald-400"],
+[class*="text-emerald-200/"],
+[class*="text-emerald-300/"] { color: var(--cx-accent) !important; }
+[class~="bg-emerald-300"],
+[class~="bg-emerald-400"],
+[class*="bg-emerald-300/"],
+[class*="bg-emerald-400/"] { background-color: color-mix(in srgb, var(--cx-accent) 14%, transparent) !important; }
+[class*="border-emerald-300/"],
+[class*="border-emerald-400/"] { border-color: var(--cx-border-strong) !important; }
+
+[class~="text-cyan-100"],
+[class~="text-cyan-200"],
+[class~="text-cyan-300"],
+[class*="text-cyan-300/"] { color: var(--cx-highlight) !important; }
+[class*="border-cyan-"],
+[class*="border-blue-"] { border-color: rgba(232, 188, 203, 0.28) !important; }
+[class*="bg-cyan-"],
+[class*="bg-blue-"] { background-color: color-mix(in srgb, var(--cx-info) 12%, transparent) !important; }
+
+[class~="text-orange-200"],
+[class~="text-orange-300"],
+[class~="text-amber-200"],
+[class~="text-amber-300"],
+[class*="text-orange-300/"],
+[class*="text-amber-300/"] { color: var(--cx-accent) !important; }
+[class*="bg-orange-300/"],
+[class*="bg-amber-300/"] { background-color: color-mix(in srgb, var(--cx-accent) 13%, transparent) !important; }
+
+[class~="text-red-100"],
+[class~="text-red-200"],
+[class~="text-red-300"],
+[class*="text-red-300/"] { color: var(--cx-critical) !important; }
+[class*="bg-red-300/"],
+[class*="border-red-300/"] { background-color: color-mix(in srgb, var(--cx-critical) 13%, transparent) !important; border-color: color-mix(in srgb, var(--cx-critical) 34%, transparent) !important; }
 
 .cx-label {
   color: rgb(100 116 139);

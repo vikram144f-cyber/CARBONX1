@@ -13,6 +13,7 @@ import {
   stepPlayer,
 } from "../features/carbon-world/movement";
 import { BrunoZoneManager } from "../features/carbon-world/bruno-simon-adapter";
+import { stepRover } from "../features/carbon-world/rover-drive";
 
 const emptyState: WorldState = {
   projectCount: 2,
@@ -75,4 +76,21 @@ test("Bruno-style cylindrical zones emit one enter and one leave transition", ()
   update([6.01, 0, -2]);
 
   assert.deepEqual(transitions, ["enter:incident", "leave:incident", "enter:incident", "leave:incident"]);
+});
+
+test("folio-style rover controls accelerate, steer, brake, and preserve world bounds", () => {
+  const bounds = { minX: -2, maxX: 2, minZ: -2, maxZ: 2 };
+  const initial = { position: [0, 0.34, 0] as [number, number, number], heading: 0, speed: 0, steering: 0 };
+  const moving = stepRover(initial, { forward: true, backward: false, left: false, right: true, boost: true, brake: false }, 1 / 30, bounds);
+  assert.ok(moving.speed > 0);
+  assert.ok(moving.steering > 0);
+  assert.ok(moving.heading > 0);
+  assert.ok(moving.position[2] < 0);
+
+  const stopped = stepRover(moving, { forward: false, backward: false, left: false, right: false, boost: false, brake: true }, 1 / 20, bounds);
+  assert.ok(stopped.speed < moving.speed);
+
+  const bounded = stepRover({ ...initial, position: [1.99, 0.34, -1.99], speed: 14 }, { forward: true, backward: false, left: false, right: true, boost: true, brake: false }, 1, bounds);
+  assert.ok(bounded.position[0] <= bounds.maxX && bounded.position[0] >= bounds.minX);
+  assert.ok(bounded.position[2] <= bounds.maxZ && bounded.position[2] >= bounds.minZ);
 });

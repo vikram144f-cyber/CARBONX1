@@ -12,11 +12,11 @@ export function MetricCard({
   tone?: "neutral" | "green" | "amber" | "red" | "blue";
 }) {
   const tones = {
-    neutral: "border-white/10 bg-white/[0.035]",
-    green: "border-emerald-300/20 bg-emerald-300/[0.06]",
+    neutral: "border-cx-highlight/15 bg-cx-bg/55",
+    green: "border-cx-accent/25 bg-cx-accent/10",
     amber: "border-amber-300/20 bg-amber-300/[0.06]",
     red: "border-red-300/20 bg-red-300/[0.06]",
-    blue: "border-blue-300/20 bg-blue-300/[0.06]",
+    blue: "border-cx-highlight/20 bg-cx-purple/35",
   };
   return (
     <div className={`rounded-2xl border p-5 ${tones[tone]}`}>
@@ -28,7 +28,7 @@ export function MetricCard({
 }
 
 export function Panel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
-  return <section id={id} className={`rounded-2xl border border-white/10 bg-[#0b1915]/80 shadow-[0_16px_60px_rgba(0,0,0,0.16)] ${className}`}>{children}</section>;
+  return <section id={id} className={`cx-panel rounded-2xl ${className}`}>{children}</section>;
 }
 
 export function PanelHeading({ eyebrow, title, detail }: { eyebrow?: string; title: string; detail?: string }) {
