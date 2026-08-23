@@ -18,8 +18,9 @@ const STAGES = [
   { id: "SATELLITE_ANALYSIS", label: "Sentinel-2 Multi-Spectral NDVI Analysis" },
   { id: "EVIDENCE_RECONCILIATION", label: "Multi-Modal Evidence Reconciliation" },
   { id: "TRUTH_SCORING", label: "Algorithmic Truth Scoring & Anomaly Detection" },
-  { id: "REPORT_GENERATION", label: "NVIDIA Llama 3.3 70B Synthesis & Report Compilation" },
+  { id: "REPORT_GENERATION", label: "Google Gemini 2.5 Multi-Modal Synthesis & Report Compilation" },
   { id: "COMPLETE", label: "Verification Complete" },
+
 ];
 
 export default function LiveVerificationPage({
