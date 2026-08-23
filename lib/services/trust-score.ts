@@ -294,10 +294,16 @@ export class TrustScoreService {
     const anomalies: Anomaly[] = model.anomalies as TrustScoreModelAnomaly[];
     const truthScore = model.truthScore;
 
+    const hasCriticalAnomaly = anomalies.some((a) => a.severity === "CRITICAL");
     let decision: "VERIFIED" | "REVIEW" | "HIGH_RISK" | "INVALID" = "VERIFIED";
-    if (truthScore < 50) decision = "INVALID";
-    else if (truthScore < 75) decision = "HIGH_RISK";
-    else if (truthScore < 90) decision = "REVIEW";
+    if (truthScore < 45 || (hasCriticalAnomaly && truthScore < 60)) {
+      decision = truthScore < 40 ? "INVALID" : "HIGH_RISK";
+    } else if (truthScore < 75) {
+      decision = "HIGH_RISK";
+    } else if (truthScore < 90) {
+      decision = "REVIEW";
+    }
+
 
     const auditRecommended = decision !== "VERIFIED" || anomalies.length > 0;
 

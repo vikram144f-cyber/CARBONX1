@@ -110,14 +110,19 @@ export function calculateTrustScoreModel(
       : null;
   const anomalies: TrustScoreModelAnomaly[] = [];
 
+  let spatialMultiplier = 1.0;
+  let carbonMultiplier = 1.0;
+  let envMultiplier = 1.0;
+  let scoreCap = 100;
+
   // ==========================================
   // 1. GEOGRAPHIC CONSISTENCY (15 Max)
   // ==========================================
   const qualityScore: Record<string, number> = {
     HIGH: MAX.geographic,
-    MEDIUM: 12.5,
-    LOW: 8.0,
-    UNKNOWN: 5.0,
+    MEDIUM: 12.0,
+    LOW: 6.0,
+    UNKNOWN: 3.0,
   };
   let geographicScore = input.boundaryPresent
     ? qualityScore[input.boundaryQuality ?? "UNKNOWN"] ?? qualityScore.UNKNOWN
@@ -132,24 +137,36 @@ export function calculateTrustScoreModel(
         Math.max(measuredAreaHa, input.claimedAreaHa)) *
       100;
     if (mismatchPct > 15) {
-      geographicScore = Math.max(3.0, geographicScore * (1 - mismatchPct / 100));
+      geographicScore = Math.max(2.0, geographicScore * (1 - mismatchPct / 100));
       geographicReason = `Area discrepancy: claimed ${input.claimedAreaHa.toFixed(1)} ha diverges by ${mismatchPct.toFixed(1)}% from calculated GIS polygon (${measuredAreaHa.toFixed(1)} ha).`;
+      
+      const isCriticalMismatch = mismatchPct > 35;
       anomalies.push({
         type: "AREA_MISMATCH_DISCREPANCY",
-        severity: mismatchPct > 40 ? "CRITICAL" : "HIGH",
+        severity: isCriticalMismatch ? "CRITICAL" : "HIGH",
         message: `Claimed project area (${input.claimedAreaHa.toFixed(1)} ha) deviates by ${mismatchPct.toFixed(1)}% from measured GIS polygon boundary (${measuredAreaHa.toFixed(1)} ha).`,
       });
+
+      if (isCriticalMismatch) {
+        spatialMultiplier = Math.min(spatialMultiplier, 0.5);
+        scoreCap = Math.min(scoreCap, 50);
+      }
     }
   }
 
+  // CRITICAL GATING: If boundary is missing or invalid polygon, spatial verification fails entirely!
   if (!input.boundaryPresent || !input.boundaryHasGeometry) {
-    geographicScore = Math.min(geographicScore, 4);
-    geographicReason = "Boundary geometry is unavailable; no spatial verification is claimed.";
+    geographicScore = 2.0;
+    geographicReason = "Boundary geometry is missing or unverified. No spatial attribution possible.";
     anomalies.push({
       type: "APPROXIMATE_GEOMETRY",
-      severity: "HIGH",
-      message: "A complete project boundary geometry is not available for verification.",
+      severity: "CRITICAL",
+      message: "A complete GIS polygon boundary is missing. Carbon claims cannot be verified against physical land mass.",
     });
+
+    // Severe gating penalty: Carbon cannot be claimed without a verified plot of land
+    spatialMultiplier = 0.35;
+    scoreCap = Math.min(scoreCap, 38);
   }
 
   // ==========================================
@@ -165,19 +182,22 @@ export function calculateTrustScoreModel(
     carbonReason = `Calculated biomass density of ${biomassDensity.toFixed(1)} tCO2e/ha (${totalCredits.toLocaleString()} tCO2e across ${measuredAreaHa.toFixed(1)} ha) is consistent with biological baseline.`;
 
     if (biomassDensity > 350) {
-      carbonScore = Math.max(4.0, carbonScore);
+      carbonScore = 4.0;
       carbonReason = `Excessive biomass claim: ${biomassDensity.toFixed(1)} tCO2e/ha exceeds biological capacity limits.`;
       anomalies.push({
         type: "EXCESSIVE_CARBON_DENSITY",
         severity: "CRITICAL",
-        message: `Held inventory implies ${biomassDensity.toFixed(1)} tCO2e/ha, substantially above biological sequestration thresholds.`,
+        message: `Held inventory implies ${biomassDensity.toFixed(1)} tCO2e/ha, exceeding biological sequestration thresholds by >250%.`,
       });
+      carbonMultiplier = 0.45;
+      scoreCap = Math.min(scoreCap, 45);
     } else if (biomassDensity > 180) {
       anomalies.push({
         type: "ELEVATED_CARBON_DENSITY",
         severity: "MEDIUM",
         message: `Held inventory implies elevated density (${biomassDensity.toFixed(1)} tCO2e/ha) and merits human review.`,
       });
+      carbonScore = Math.min(carbonScore, 20);
     } else if (biomassDensity < 15) {
       anomalies.push({
         type: "LOW_CARBON_DENSITY",
@@ -185,6 +205,10 @@ export function calculateTrustScoreModel(
         message: `Held inventory implies low density (${biomassDensity.toFixed(1)} tCO2e/ha) relative to baseline.`,
       });
     }
+  } else {
+    carbonScore = 5.0;
+    carbonMultiplier = 0.6;
+    scoreCap = Math.min(scoreCap, 50);
   }
 
   // ==========================================
@@ -213,19 +237,19 @@ export function calculateTrustScoreModel(
   // ==========================================
   // 4. ENVIRONMENTAL EVIDENCE CONSISTENCY (20 Max)
   // ==========================================
-  // In carbon auditing: 0 fire alerts is IDEAL and represents an undisturbed, pristine canopy!
   let environmentalScore: number = MAX.environmental;
   let environmentalReason = "No active thermal alerts detected; canopy baseline remains undisturbed.";
 
   if (input.hasHighRiskIncident) {
-    environmentalScore = 6.0;
-
-    environmentalReason = "Active thermal alert and high-risk incident detected within project boundary.";
+    environmentalScore = 0.0;
+    environmentalReason = "Active NASA FIRMS thermal hotspot and high-risk fire incident detected within project boundary.";
     anomalies.push({
       type: "THERMAL_HOTSPOT_OVERLAP",
-      severity: "HIGH",
-      message: "NASA FIRMS thermal hotspot observed within project perimeter.",
+      severity: "CRITICAL",
+      message: "Active NASA FIRMS thermal hotspot observed within project perimeter.",
     });
+    envMultiplier = 0.7;
+    scoreCap = Math.min(scoreCap, 60);
   } else if (input.environmentalEvidenceCount > 0) {
     const sourceConfidence = clamp(
       input.environmentalSourceConfidence ?? 0.8,
@@ -239,8 +263,10 @@ export function calculateTrustScoreModel(
   // ==========================================
   // 5. SENSOR TELEMETRY AVAILABILITY (10 Max)
   // ==========================================
-  const telemetryScore = 9.0;
-  const telemetryReason = "Sentinel-2 multi-spectral remote sensing telemetry active and calibrated.";
+  const telemetryScore = input.boundaryHasGeometry ? 9.0 : 3.0;
+  const telemetryReason = input.boundaryHasGeometry
+    ? "Sentinel-2 multi-spectral remote sensing telemetry active and calibrated."
+    : "Sentinel-2 telemetry uncalibrated due to missing boundary geometry.";
 
   // ==========================================
   // 6. TEMPORAL CONSISTENCY (10 Max)
@@ -266,13 +292,16 @@ export function calculateTrustScoreModel(
     component("TEMPORAL_CONSISTENCY", "Temporal Consistency", temporalScore, MAX.temporal, temporalReason),
   ];
 
-  const truthScore = round(
-    components.reduce((sum, current) => sum + current.weighted_score, 0),
-  );
+  // Raw unweighted sum
+  const rawSum = components.reduce((sum, current) => sum + current.weighted_score, 0);
+
+  // Multi-modal gating calculation
+  const gatedScore = rawSum * spatialMultiplier * carbonMultiplier * envMultiplier;
+  const truthScore = round(clamp(gatedScore, 0, scoreCap));
 
   return {
     truthScore,
-    confidence: 0.95,
+    confidence: input.boundaryHasGeometry ? 0.95 : 0.4,
     components,
     anomalies,
     measuredAreaHa,
