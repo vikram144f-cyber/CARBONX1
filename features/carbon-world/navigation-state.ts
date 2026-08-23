@@ -39,7 +39,7 @@ export type WorldState = {
 export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
   {
     id: "portfolio",
-    label: "Portfolio Observatory",
+    label: "CARBONX HQ",
     eyebrow: "01 · intelligence",
     description: "Open the live portfolio command view.",
     position: [-15, 0, -9],
@@ -48,7 +48,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
   },
   {
     id: "projects",
-    label: "Project Archive",
+    label: "Project Intelligence",
     eyebrow: "02 · boundaries",
     description: "Explore carbon projects and boundary provenance.",
     position: [15, 0, -7],
@@ -57,7 +57,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
   },
   {
     id: "incidents",
-    label: "Incident Command Center",
+    label: "Incident Command",
     eyebrow: "03 · response",
     description: "Review environmental incidents and empty-state truth.",
     position: [14, 0, 10],
@@ -66,7 +66,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
   },
   {
     id: "evidence",
-    label: "Evidence Station",
+    label: "Evidence Vault",
     eyebrow: "04 · provenance",
     description: "Evidence and document management readiness.",
     position: [-13, 0, 12],
@@ -84,7 +84,7 @@ export const WORLD_DESTINATIONS: readonly WorldDestination[] = [
   },
   {
     id: "investigation",
-    label: "Investigation Zone",
+    label: "Investigation Lab",
     eyebrow: "06 · spatial review",
     description: "Launch the 3D investigation for a valid incident.",
     position: [0, 0, 18],

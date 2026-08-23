@@ -83,9 +83,14 @@ test("folio-style rover controls accelerate, steer, brake, and preserve world bo
   const initial = { position: [0, 0.34, 0] as [number, number, number], heading: 0, speed: 0, steering: 0 };
   const moving = stepRover(initial, { forward: true, backward: false, left: false, right: true, boost: true, brake: false }, 1 / 30, bounds);
   assert.ok(moving.speed > 0);
-  assert.ok(moving.steering > 0);
-  assert.ok(moving.heading > 0);
-  assert.ok(moving.position[2] < 0);
+  assert.ok(moving.steering < 0);
+  assert.ok(moving.heading < 0);
+  assert.ok(moving.position[2] > 0);
+
+  const left = stepRover(initial, { forward: true, backward: false, left: true, right: false, boost: true, brake: false }, 1 / 30, bounds);
+  assert.ok(left.steering > 0);
+  assert.ok(left.heading > 0);
+  assert.ok(left.position[2] < 0);
 
   const stopped = stepRover(moving, { forward: false, backward: false, left: false, right: false, boost: false, brake: true }, 1 / 20, bounds);
   assert.ok(stopped.speed < moving.speed);
