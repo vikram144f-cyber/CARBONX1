@@ -209,15 +209,16 @@ export class TrustScoreService {
     const boundary = project.boundaries?.[0];
 
     const totalCredits =
-      project.creditHoldings.reduce((sum, h) => sum + h.heldQuantity, 0) || 10000;
-    const activeIncidents = project.incidents.filter(
-      (i) => i.status !== "RESOLVED",
+      (project.creditHoldings ?? []).reduce((sum: number, h: { heldQuantity: number }) => sum + h.heldQuantity, 0) || 10000;
+    const activeIncidents = (project.incidents ?? []).filter(
+      (i: { status: string }) => i.status !== "RESOLVED",
     );
-    const hasHighRiskIncident = activeIncidents.some((i) =>
-      i.assessments.some(
+    const hasHighRiskIncident = activeIncidents.some((i: { assessments?: Array<{ integrityRisk: string }> }) =>
+      (i.assessments ?? []).some(
         (a) => a.integrityRisk === "HIGH" || a.integrityRisk === "CRITICAL",
       ),
     );
+
 
     const anomalies: Anomaly[] = [];
 
