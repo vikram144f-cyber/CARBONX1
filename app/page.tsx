@@ -1,5 +1,5 @@
-import { PortfolioDashboard } from "@/components/portfolio-dashboard";
+import { WorldExperience } from "@/features/carbon-world/world-experience";
 
 export default function HomePage() {
-  return <PortfolioDashboard />;
+  return <WorldExperience />;
 }

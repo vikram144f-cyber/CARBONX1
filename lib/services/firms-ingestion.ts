@@ -13,12 +13,14 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { environmentalEventProcessor } from "./event-processing";
+import { parseFirmsCsv } from "./firms-csv";
 
 const FIRMS_SOURCE = "VIIRS_SNPP_NRT";
 const CHECKPOINT_SOURCE = `NASA_FIRMS_${FIRMS_SOURCE}`;
 const FIRMS_ENDPOINT =
-  "https://firms.modaps.eosdis.nasa.gov/api/area/json";
-const MAX_LOOKBACK_HOURS = 240;
+  "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
+const MAX_LOOKBACK_DAYS = 5;
+const MAX_LOOKBACK_HOURS = MAX_LOOKBACK_DAYS * 24;
 const DEFAULT_LOOKBACK_HOURS = 24;
 const DEFAULT_BBOX_PADDING_KM = 1;
 
@@ -271,16 +273,14 @@ export class FIRMSIngestionService {
       const url = `${FIRMS_ENDPOINT}/${encodeURIComponent(env.NASA_FIRMS_MAP_KEY)}/${FIRMS_SOURCE}/${bboxParam}/${days}`;
 
       const response = await this.fetcher(url, {
-        headers: { accept: "application/json" },
+        headers: { accept: "text/csv" },
       });
       if (!response.ok) {
         throw new Error(`FIRMS API returned HTTP ${response.status}`);
       }
 
-      const payload: unknown = await response.json();
-      if (!Array.isArray(payload)) {
-        throw new Error("FIRMS API returned a non-array payload");
-      }
+      const csvPayload = await response.text();
+      const payload = parseFirmsCsv(csvPayload);
 
       const rows: Prisma.EnvironmentalEventCreateManyInput[] = [];
       for (const raw of payload) {
@@ -397,7 +397,7 @@ export class FIRMSIngestionService {
       (now.getTime() - lastSuccessAt.getTime()) / (60 * 60 * 1000),
     );
     const boundedHours = Math.min(MAX_LOOKBACK_HOURS, elapsedHours);
-    return Math.max(1, Math.min(10, Math.ceil(boundedHours / 24)));
+    return Math.max(1, Math.min(MAX_LOOKBACK_DAYS, Math.ceil(boundedHours / 24)));
   }
 }
 

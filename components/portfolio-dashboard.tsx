@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { fetchPortfolioData } from "../lib/client/portfolio";
+
 import {
   EmptyState,
   ErrorState,
@@ -15,17 +17,14 @@ import {
   PanelHeading,
   RiskBadge,
 } from "./ui";
-import {
-  portfolioResponseSchema,
-  type PortfolioResponse,
-} from "../lib/validations/portfolio";
+import type { PortfolioResponse } from "../lib/validations/portfolio";
 
 type SortKey = "name" | "totalHeldQuantity" | "activeIncidentCount" | "risk";
 
-export function PortfolioDashboard() {
-  const [data, setData] = useState<PortfolioResponse | null>(null);
+export function PortfolioDashboard({ focus, initialData }: { focus?: string; initialData?: PortfolioResponse | null }) {
+  const [data, setData] = useState<PortfolioResponse | null>(initialData ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
   const [query, setQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("activeIncidentCount");
@@ -34,13 +33,7 @@ export function PortfolioDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/portfolio", { cache: "no-store" });
-      const envelope: unknown = await response.json();
-      const body = envelope as { success?: unknown; data?: unknown };
-      if (!response.ok || body.success !== true) {
-        throw new Error("Portfolio read failed");
-      }
-      setData(portfolioResponseSchema.parse(body.data));
+      setData(await fetchPortfolioData());
     } catch {
       setError("Portfolio data could not be loaded.");
     } finally {
@@ -48,7 +41,13 @@ export function PortfolioDashboard() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!initialData) void load();
+  }, [initialData, load]);
+  useEffect(() => {
+    if (!focus || loading) return;
+    document.getElementById(focus === "projects" ? "project-archive" : "incident-command-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focus, loading]);
 
   const projects = useMemo(() => {
     if (!data) return [];
@@ -78,7 +77,7 @@ export function PortfolioDashboard() {
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">{data.portfolio?.name ?? "Portfolio command center"}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">A decision-support view of carbon-credit exposure, environmental alerts, and evidence quality. Numeric values below are read from deterministic backend records.</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" /> Supabase connected through server APIs</div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" /> Supabase connected through server APIs <Link href="/" className="rounded-full border border-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200 hover:bg-white/[0.05]">3D World</Link></div>
       </header>
 
       <section className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -89,7 +88,7 @@ export function PortfolioDashboard() {
       </section>
 
       <section className="mt-7 grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
-        <Panel>
+        <Panel id="incident-command-center">
           <PanelHeading eyebrow="Exposure posture" title="Risk distribution" detail="Active incidents by integrity risk" />
           <div className="space-y-5 px-5 py-6 sm:px-6">
             {(["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNASSESSED"] as const).map((risk) => (
@@ -115,7 +114,7 @@ export function PortfolioDashboard() {
         </Panel>
       </section>
 
-      <Panel className="mt-7 overflow-hidden">
+      <Panel id="project-archive" className="mt-7 overflow-hidden">
         <PanelHeading eyebrow="Portfolio inventory" title="Projects" detail={`${projects.length} of ${data.projects.length} projects shown`} />
         <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project, registry, country" className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/40 sm:max-w-sm" />

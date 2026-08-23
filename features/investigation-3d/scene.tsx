@@ -143,10 +143,22 @@ function SceneContents({ data, mode, onSequenceComplete, onSelectHotspot }: Scen
   const rings = useMemo(() => data.project.boundary ? projectBoundaryToScene(data.project.boundary.geojson, data.project.centroid) : [], [data.project.boundary, data.project.centroid]);
   const bounds = useMemo(() => calculateSceneBounds(rings), [rings]);
   const eventPoint = useMemo(() => projectPointToScene(data.event.coordinate, data.project.centroid), [data.event.coordinate, data.project.centroid]);
-  const hotspotPositions = data.hotspots.map((hotspot) => ({ hotspot, point: projectPointToScene(hotspot.coordinate, data.project.centroid) })).filter((item): item is { hotspot: InvestigationHotspot; point: [number, number] } => Boolean(item.point));
+  const hotspotPositions = useMemo(
+    () =>
+      data.hotspots
+        .map((hotspot) => ({
+          hotspot,
+          point: projectPointToScene(hotspot.coordinate, data.project.centroid),
+        }))
+        .filter(
+          (item): item is { hotspot: InvestigationHotspot; point: [number, number] } =>
+            Boolean(item.point),
+        ),
+    [data.hotspots, data.project.centroid],
+  );
   return (
     <>
-      <color attach="background" args={[new Color("#04100c").getHex()]} />
+      <color attach="background" args={["#04100c"]} />
       <fog attach="fog" args={["#04100c", 22, 80]} />
       <ambientLight intensity={0.8} />
       <directionalLight position={[12, 20, 7]} intensity={2.4} color="#d9fff0" castShadow />

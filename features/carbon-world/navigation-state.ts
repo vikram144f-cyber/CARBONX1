@@ -22,8 +22,8 @@ export type WorldIncident = {
 };
 
 export type WorldState = {
-  projectCount: number;
-  activeIncidentCount: number;
+  projectCount: number | null;
+  activeIncidentCount: number | null;
   incidents: WorldIncident[];
   systemReady: boolean;
 };
@@ -128,5 +128,8 @@ export function resolveWorldRoute(
 }
 
 export function worldStatusLine(state: WorldState): string {
+  if (!state.systemReady || state.projectCount === null || state.activeIncidentCount === null) {
+    return "Syncing live portfolio data…";
+  }
   return `${state.projectCount} projects monitored · ${state.activeIncidentCount} active incidents`;
 }

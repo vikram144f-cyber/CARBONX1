@@ -27,8 +27,8 @@ export function MetricCard({
   );
 }
 
-export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-white/10 bg-[#0b1915]/80 shadow-[0_16px_60px_rgba(0,0,0,0.16)] ${className}`}>{children}</section>;
+export function Panel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
+  return <section id={id} className={`rounded-2xl border border-white/10 bg-[#0b1915]/80 shadow-[0_16px_60px_rgba(0,0,0,0.16)] ${className}`}>{children}</section>;
 }
 
 export function PanelHeading({ eyebrow, title, detail }: { eyebrow?: string; title: string; detail?: string }) {

@@ -32,6 +32,12 @@ const sourceFiles = [
   "features/investigation-3d/interaction-state.ts",
   "features/investigation-3d/scene-state.ts",
   "features/investigation-3d/webgl.ts",
+  "tests/world-navigation.test.ts",
+  "features/carbon-world/navigation-state.ts",
+  "features/carbon-world/movement.ts",
+  "features/carbon-world/bruno-simon-adapter.ts",
+  "tests/firms-csv.test.ts",
+  "lib/services/firms-csv.ts",
 ];
 
 try {
@@ -67,6 +73,8 @@ try {
     path.join(outputDirectory, "tests", "epic-05.test.js"),
     path.join(outputDirectory, "tests", "epic-08.test.js"),
     path.join(outputDirectory, "tests", "epic-09.test.js"),
+    path.join(outputDirectory, "tests", "world-navigation.test.js"),
+    path.join(outputDirectory, "tests", "firms-csv.test.js"),
   ];
   for (const file of testFiles) {
     const test = spawnSync(
