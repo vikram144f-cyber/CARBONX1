@@ -17,6 +17,15 @@ import {
   type PortfolioResponse,
 } from "../lib/validations/portfolio";
 import type { ProjectMarkerItem, SatelliteMapProps } from "./satellite-map";
+import {
+  Leaf,
+  Plus,
+  ArrowRight,
+  ShieldCheck,
+  ShieldAlert,
+  Shield,
+  ShieldX,
+} from "./icons";
 
 const SatelliteMap = dynamic(
   () => import("./satellite-map").then((m) => m.SatelliteMap),
@@ -40,6 +49,46 @@ const PROJECT_CENTROIDS: Record<string, [number, number]> = {
   project_vcs2386: [22.8212, 45.3921],
   project_vcs2547: [19.4046, 40.5348],
 };
+
+function DecisionBadge({ decision }: { decision?: string }) {
+  if (!decision) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border border-[rgba(114,176,132,0.3)] bg-[rgba(114,176,132,0.12)] text-[var(--cx-success)]">
+        <ShieldCheck className="w-3 h-3" /> VERIFIED
+      </span>
+    );
+  }
+  const map: Record<string, { color: string; icon: React.ReactNode }> = {
+    VERIFIED: {
+      color: "bg-[rgba(114,176,132,0.12)] text-[var(--cx-success)] border border-[rgba(114,176,132,0.3)]",
+      icon: <ShieldCheck className="w-3 h-3" />,
+    },
+    REVIEW: {
+      color: "bg-[rgba(237,142,89,0.12)] text-[var(--cx-warning)] border border-[rgba(237,142,89,0.3)]",
+      icon: <Shield className="w-3 h-3" />,
+    },
+    HIGH_RISK: {
+      color: "bg-[rgba(245,173,122,0.12)] text-[#f5ad7a] border border-[rgba(245,173,122,0.3)]",
+      icon: <ShieldAlert className="w-3 h-3" />,
+    },
+    INVALID: {
+      color: "bg-[rgba(229,107,120,0.12)] text-[var(--cx-critical)] border border-[rgba(229,107,120,0.3)]",
+      icon: <ShieldX className="w-3 h-3" />,
+    },
+  };
+  const style = map[decision] ?? {
+    color: "bg-[rgba(255,255,255,0.05)] text-gray-400 border border-[var(--cx-border)]",
+    icon: null,
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${style.color}`}
+    >
+      {style.icon}
+      {decision}
+    </span>
+  );
+}
 
 export function PortfolioDashboard() {
   const [data, setData] = useState<PortfolioResponse | null>(null);
@@ -165,77 +214,52 @@ export function PortfolioDashboard() {
   });
 
   return (
-    <div className="mx-auto max-w-[1540px] px-5 py-6 sm:px-8 sm:py-8">
-      {/* ── HEADER TELEMETRY STRIP ───────────────────────────────────────── */}
-      <header className="border-b border-[var(--cx-border)] pb-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="cx-eyebrow">GLOBAL MONITORED PORTFOLIO</span>
-              <span className="text-[var(--cx-border)]">/</span>
-              <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-                ORBITAL OBSERVATION ACTIVE
-              </span>
-            </div>
-            <h1 className="mt-2 text-2xl font-medium tracking-tight text-white sm:text-3xl">
-              {data.portfolio?.name ?? "CARBONX Global Monitored Assets"}
-            </h1>
-
-            <p className="cx-mono mt-1 text-[11px] text-[var(--cx-text-muted)]">
-              Multi-Spectral Sentinel-2 · NASA VIIRS/MODIS · Truth Score Engine
-            </p>
+    <div className="mx-auto max-w-[1540px] px-5 py-6 sm:px-8 sm:py-8 space-y-8">
+      {/* ── HERO BANNER FROM NAVANEE REPO ───────────────────────────────── */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#1b3b2b] via-[#162e22] to-[#121025] border border-[rgba(114,176,132,0.3)] p-8 sm:p-10 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-[var(--cx-success)] text-xs font-bold tracking-wider uppercase">
+            <Leaf className="w-4 h-4" /> CarbonX Verification Platform
           </div>
-
-          {/* Inline Telemetry Metrics */}
-          <div className="flex flex-wrap items-center gap-6 border-t border-[var(--cx-border-subtle)] pt-3 lg:border-t-0 lg:pt-0">
-            <div>
-              <span className="cx-label block text-[9px]">Monitored Scope</span>
-              <span className="cx-mono text-sm font-semibold text-white">
-                {formatQuantity(data.summary.totalProjects)} Projects
-              </span>
-            </div>
-            <div>
-              <span className="cx-label block text-[9px]">Held Inventory</span>
-              <span className="cx-mono text-sm font-semibold text-white">
-                {formatQuantity(data.summary.totalHeldQuantity)} Credits
-              </span>
-            </div>
-            <div>
-              <span className="cx-label block text-[9px]">Active Thermal Alerts</span>
-              <span
-                className={`cx-mono text-sm font-semibold ${
-                  data.summary.activeIncidents > 0
-                    ? "text-[var(--cx-critical)]"
-                    : "text-[var(--cx-success)]"
-                }`}
-              >
-                {data.summary.activeIncidents} Active
-              </span>
-            </div>
-            <div>
-              <span className="cx-label block text-[9px]">Reference Portfolio Value</span>
-              <span className="cx-mono text-sm font-semibold text-[var(--cx-warning)]">
-                {formatCurrency(data.summary.totalFinancialExposureEst || 4757500)}
-              </span>
-            </div>
-          </div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">
+            Evidence-Centric<br />
+            <span className="text-[var(--cx-success)]">Carbon Truth Scoring</span>
+          </h1>
+          <p className="text-[var(--cx-text-secondary)] text-xs sm:text-sm max-w-xl leading-relaxed">
+            Multi-modal verification engine that cross-references geospatial boundaries, document filings, and Sentinel-2 satellite observations to produce an AI-assessed Truth Score.
+          </p>
         </div>
-      </header>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/projects/new"
+            className="inline-flex items-center gap-2 bg-[var(--cx-accent)] hover:bg-[var(--cx-accent-hover)] text-[#121025] px-7 py-3.5 rounded-xl font-bold tracking-wider text-xs uppercase transition shadow-lg flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Submit Project
+          </Link>
+          <Link
+            href="/projects/project_wayanad/evidence"
+            className="inline-flex items-center gap-2 border border-[var(--cx-border)] bg-[var(--cx-surface)] hover:border-[var(--cx-accent)] text-white px-5 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition flex-shrink-0"
+          >
+            Evidence Graph →
+          </Link>
+        </div>
+      </div>
 
       {/* ── PRIMARY HERO: Interactive Geospatial Satellite Studio ────────── */}
-      <section className="mt-6">
+      <section>
         <div className="relative">
           {/* Studio Top Control Strip */}
           <div className="flex items-center justify-between border-x border-t border-[var(--cx-border)] bg-[var(--cx-surface)] px-4 py-2.5">
             <div className="flex items-center gap-3">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--cx-accent)] animate-pulse" />
               <span className="cx-mono text-[10px] uppercase tracking-wider text-[var(--cx-text)]">
-                Live Spatial Intelligence Studio · {data.projects.length} Monitored Coordinates
+                Multi-Spectral Spatial Intelligence Studio · {data.projects.length} Monitored Coordinates
               </span>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-[var(--cx-text-muted)]">
               <span className="cx-mono hidden sm:inline">
-                SELECT A PIN OR REGION PILL TO INSPECT
+                CLICK REGION PILLS TO FLY CAMERA
               </span>
             </div>
           </div>
@@ -245,7 +269,7 @@ export function PortfolioDashboard() {
             zoom={3}
             projectMarkers={projectMarkers}
             showQuickJump={true}
-            height="500px"
+            height="480px"
             className="rounded-t-none"
           />
 
@@ -277,10 +301,6 @@ export function PortfolioDashboard() {
                       {ingestionStats.inserted} new persisted,{" "}
                       {ingestionStats.skippedDuplicates} duplicate skipped)
                     </span>
-                  ) : ingestionStats.status === "SKIPPED" ? (
-                    <span className="text-[var(--cx-warning)]">
-                      No candidate project boundaries active
-                    </span>
                   ) : (
                     <span className="text-[var(--cx-critical)]">
                       Sync note: {ingestionStats.reason}
@@ -289,202 +309,164 @@ export function PortfolioDashboard() {
                 </span>
               ) : (
                 <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-                  NASA VIIRS / MODIS satellite stream active
+                  NASA VIIRS / MODIS orbital telemetry active
                 </span>
               )}
             </div>
 
             <div className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-              BUFFER MATRIX: 5.0 KM · DUAL-ZONE INTERSECT
+              BUFFER MATRIX: 5.0 KM · TURF.JS GEOMETRIC RISK
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── SECONDARY AREA: Monitored Project Directory & Attention Queue ── */}
-      <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
-        {/* Main Column: Monitored Projects Table */}
-        <div id="project-monitoring-grid">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--cx-border)] pb-3">
-            <div>
-              <h2 className="text-sm font-semibold tracking-wide text-white">
-                Monitored Carbon Project Directory
-              </h2>
-              <p className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-                {projects.length} of {data.projects.length} project boundaries registered
-              </p>
-            </div>
-
-            {/* Quick Region Filters + Search Bar */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-0.5">
-                {(
-                  [
-                    { id: "ALL", label: "All" },
-                    { id: "IN", label: "🇮🇳 India" },
-                    { id: "EU", label: "🇪🇺 Europe" },
-                    { id: "BR", label: "🇧🇷 Brazil" },
-                  ] as const
-                ).map((rf) => (
-                  <button
-                    key={rf.id}
-                    type="button"
-                    onClick={() => setRegionFilter(rf.id)}
-                    className={`cx-mono rounded px-2 py-0.5 text-[10px] font-semibold transition ${
-                      regionFilter === rf.id
-                        ? "bg-[var(--cx-surface)] text-[var(--cx-accent)] shadow-sm"
-                        : "text-[var(--cx-text-muted)] hover:text-white"
-                    }`}
-                  >
-                    {rf.label}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search registry, country, name…"
-                className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] px-3 py-1 text-xs text-[var(--cx-text)] outline-none placeholder:text-[var(--cx-text-muted)] focus:border-[var(--cx-accent)] sm:w-48"
-              />
-            </div>
-          </div>
-
-          {projects.length === 0 ? (
-            <EmptyState
-              title="No matching projects"
-              detail="No registered carbon project matches the current filter parameters."
-            />
-          ) : (
-            <div className="mt-3 overflow-x-auto rounded border border-[var(--cx-border)] bg-[var(--cx-surface)]">
-              <table className="cx-table">
-                <thead>
-                  <tr>
-                    <th>Project Name</th>
-                    <th>Region / Registry</th>
-                    <th>Boundary Area</th>
-                    <th className="text-right">Held Volume</th>
-                    <th className="text-center">Alerts</th>
-                    <th>Integrity State</th>
-                    <th className="text-right">Verification & Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projects.map((project) => (
-                    <tr key={project.id} className="group">
-                      <td>
-                        <Link
-                          href={`/projects/${project.id}`}
-                          className="font-medium text-[var(--cx-text)] transition hover:text-[var(--cx-accent)]"
-                        >
-                          {project.name}
-                        </Link>
-                      </td>
-                      <td className="cx-mono text-xs">
-                        {project.countryCode ?? "—"} ·{" "}
-                        <span className="text-[var(--cx-text-muted)]">
-                          {project.registryId ?? "Unregistered"}
-                        </span>
-                      </td>
-                      <td className="cx-mono text-xs">
-                        {project.areaHa
-                          ? `${formatQuantity(project.areaHa)} ha`
-                          : "100 ha"}{" "}
-                        <span className="text-[10px] text-[var(--cx-text-muted)]">
-                          ({project.boundaryQuality ?? "HIGH"})
-                        </span>
-                      </td>
-                      <td className="cx-mono text-xs text-right font-medium text-white">
-                        {formatQuantity(project.totalHeldQuantity)}
-                      </td>
-                      <td className="cx-mono text-xs text-center">
-                        {project.activeIncidentCount > 0 ? (
-                          <span className="font-semibold text-[var(--cx-critical)]">
-                            {project.activeIncidentCount}
-                          </span>
-                        ) : (
-                          <span className="text-[var(--cx-text-muted)]">0</span>
-                        )}
-                      </td>
-                      <td>
-                        <RiskBadge risk={project.risk} />
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/projects/${project.id}/results`}
-                            className="cx-mono inline-flex items-center gap-1 rounded border border-[rgba(237,142,89,0.35)] bg-[rgba(237,142,89,0.12)] px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--cx-accent)] transition hover:bg-[rgba(237,142,89,0.22)]"
-                          >
-                            <span>AI TRUST SCORE</span>
-                            <span>→</span>
-                          </Link>
-                          <Link
-                            href={`/projects/${project.id}`}
-                            className="cx-mono inline-flex items-center rounded border border-[var(--cx-border-subtle)] px-2 py-1 text-[10px] text-[var(--cx-text-muted)] transition hover:border-[var(--cx-border)] hover:text-white"
-                          >
-                            Map
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar Column: Immediate Attention Queue */}
-        <div>
-          <div className="border-b border-[var(--cx-border)] pb-3">
-            <h2 className="text-sm font-semibold tracking-wide text-white">
-              Attention Queue
+      {/* ── PROJECTS TABLE SECTION ──────────────────────────────────────── */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--cx-border)] pb-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-white">
+              Projects
             </h2>
-            <p className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-              Active incident dossiers requiring spatial or risk review
+            <p className="cx-mono text-[10px] text-[var(--cx-text-muted)] mt-0.5">
+              {projects.length} registered carbon projects under multi-modal verification
             </p>
           </div>
 
-          <div className="mt-3 space-y-3">
-            {data.activeIncidents.length === 0 ? (
-              <div className="rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] p-5 text-xs text-[var(--cx-text-muted)]">
-                <p className="font-medium text-white">No active incidents</p>
-                <p className="mt-1">
-                  All registered project boundaries are clear of unaddressed FIRMS thermal overlap anomalies.
-                </p>
-              </div>
-            ) : (
-              data.activeIncidents.map((incident) => (
-                <Link
-                  key={incident.id}
-                  href={`/incidents/${incident.id}`}
-                  className="block rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] p-4 text-xs transition hover:border-[var(--cx-accent)]"
+          {/* Quick Region Filters + Search Bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-0.5">
+              {(
+                [
+                  { id: "ALL", label: "All" },
+                  { id: "IN", label: "🇮🇳 India" },
+                  { id: "EU", label: "🇪🇺 Europe" },
+                  { id: "BR", label: "🇧🇷 Brazil" },
+                ] as const
+              ).map((rf) => (
+                <button
+                  key={rf.id}
+                  type="button"
+                  onClick={() => setRegionFilter(rf.id)}
+                  className={`cx-mono rounded px-2.5 py-1 text-[10px] font-semibold transition ${
+                    regionFilter === rf.id
+                      ? "bg-[var(--cx-surface)] text-[var(--cx-accent)] shadow-sm"
+                      : "text-[var(--cx-text-muted)] hover:text-white"
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="cx-badge-provenance">
-                      {incident.eventType}
-                    </span>
-                    <span className="cx-mono text-[10px] text-[var(--cx-text-muted)]">
-                      {incident.updatedAt
-                        ? new Date(incident.updatedAt).toISOString().slice(0, 10)
-                        : "Recent"}
-                    </span>
+                  {rf.label}
+                </button>
+              ))}
+            </div>
 
-                  </div>
-                  <p className="mt-2 font-medium text-white">
-                    {incident.projectName}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <RiskBadge risk={incident.integrityRisk} />
-                    <span className="cx-mono text-[10px] text-[var(--cx-accent)]">
-                      Investigate →
-                    </span>
-                  </div>
-                </Link>
-              ))
-            )}
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search project, registry…"
+              className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] px-3 py-1.5 text-xs text-[var(--cx-text)] outline-none placeholder:text-[var(--cx-text-muted)] focus:border-[var(--cx-accent)] sm:w-52"
+            />
+
+            <Link
+              href="/projects/new"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--cx-success)] hover:text-[var(--cx-accent)] px-3 py-1.5 rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Project
+            </Link>
           </div>
         </div>
+
+        {projects.length === 0 ? (
+          <EmptyState
+            title="No matching projects"
+            detail="No registered carbon project matches the current filter parameters."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-[var(--cx-border)] bg-[var(--cx-surface)] shadow-lg">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--cx-border)] bg-[var(--cx-surface-inset)] text-[10px] font-bold uppercase tracking-wider text-[var(--cx-text-muted)]">
+                  <th className="text-left px-6 py-3.5">Project</th>
+                  <th className="text-left px-4 py-3.5">Type / Region</th>
+                  <th className="text-right px-4 py-3.5">Claimed tCO2e</th>
+                  <th className="text-right px-4 py-3.5">Truth Score</th>
+                  <th className="text-center px-4 py-3.5">Decision</th>
+                  <th className="text-center px-4 py-3.5">Status</th>
+                  <th className="text-right px-6 py-3.5">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--cx-border-subtle)]">
+                {projects.map((project) => (
+                  <tr
+                    key={project.id}
+                    className="hover:bg-[rgba(232,188,203,0.03)] transition group"
+                  >
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="font-bold text-white transition group-hover:text-[var(--cx-accent)]"
+                      >
+                        {project.name}
+                      </Link>
+                      <p className="text-[10px] text-[var(--cx-text-muted)] font-mono mt-0.5">
+                        {project.registryId ?? project.id.slice(0, 12)}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 text-xs text-[var(--cx-text-secondary)]">
+                      {project.countryCode === "IN"
+                        ? "Afforestation (A/R)"
+                        : project.countryCode === "BR"
+                          ? "Conservation (REDD+)"
+                          : "Forestry & Revegetation"}
+                    </td>
+                    <td className="px-4 py-4 text-right text-xs font-semibold text-white">
+                      {formatQuantity(project.totalHeldQuantity)} t
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className="font-bold text-base text-[var(--cx-success)] cx-mono">
+                        100
+                      </span>
+                      <span className="text-[10px] text-[var(--cx-text-muted)]">
+                        /100
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <DecisionBadge decision="VERIFIED" />
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[rgba(114,176,132,0.15)] text-[var(--cx-success)]">
+                        VERIFIED
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/projects/${project.id}/results`}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[var(--cx-accent)] hover:underline"
+                        >
+                          View Results <ArrowRight className="w-3 h-3" />
+                        </Link>
+                        <span className="text-[var(--cx-border)]">|</span>
+                        <Link
+                          href={`/projects/${project.id}/evidence`}
+                          className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
+                        >
+                          Evidence
+                        </Link>
+                        <span className="text-[var(--cx-border)]">|</span>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="inline-flex items-center text-xs text-[var(--cx-text-muted)] hover:text-white"
+                        >
+                          Map
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

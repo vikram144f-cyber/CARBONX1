@@ -89,20 +89,27 @@ export default function ProjectResultsPage({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href={`/projects/${project.id}/evidence`}
+              className="cx-mono rounded border border-[rgba(237,142,89,0.35)] bg-[rgba(237,142,89,0.12)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--cx-accent)] hover:bg-[rgba(237,142,89,0.22)] transition"
+            >
+              Explore Evidence Graph →
+            </Link>
             <Link
               href={`/projects/${project.id}`}
               className="cx-mono rounded border border-[var(--cx-border)] bg-[var(--cx-surface)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--cx-text)] transition hover:border-[var(--cx-accent)] hover:text-[var(--cx-accent)]"
             >
-              ← Project Spatial View
+              Satellite View
             </Link>
             <Link
               href="/?mode=command"
               className="cx-mono rounded border border-[var(--cx-border-subtle)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--cx-text-muted)] transition hover:text-white"
             >
-              Portfolio Console
+              Dashboard
             </Link>
           </div>
+
         </div>
       </header>
 

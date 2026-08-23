@@ -83,6 +83,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
 
               <Link
+                href="/projects/new"
+                className={`cx-mono flex flex-1 items-center justify-between rounded px-3 py-2 text-xs transition lg:flex-none ${
+                  pathname === "/projects/new"
+                    ? "border border-[var(--cx-border-strong)] bg-[var(--cx-surface)] font-medium text-[var(--cx-accent)]"
+                    : "border border-transparent text-[var(--cx-text-muted)] hover:border-[var(--cx-border)] hover:bg-[var(--cx-surface-subtle)] hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      pathname === "/projects/new"
+                        ? "bg-[var(--cx-accent)]"
+                        : "bg-transparent"
+                    }`}
+                  />
+                  Submit Project
+                </span>
+                <span className="text-[10px] text-[var(--cx-accent)]">+</span>
+              </Link>
+
+              <Link
+                href="/projects/project_wayanad/evidence"
+                className={`cx-mono flex flex-1 items-center justify-between rounded px-3 py-2 text-xs transition lg:flex-none ${
+                  pathname.includes("/evidence")
+                    ? "border border-[var(--cx-border-strong)] bg-[var(--cx-surface)] font-medium text-[var(--cx-accent)]"
+                    : "border border-transparent text-[var(--cx-text-muted)] hover:border-[var(--cx-border)] hover:bg-[var(--cx-surface-subtle)] hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      pathname.includes("/evidence")
+                        ? "bg-[var(--cx-accent)]"
+                        : "bg-transparent"
+                    }`}
+                  />
+                  Evidence Graph
+                </span>
+                <span className="text-[10px] text-[var(--cx-text-muted)]">03</span>
+              </Link>
+
+              <Link
                 href="/projects/project_wayanad/results"
                 className={`cx-mono flex flex-1 items-center justify-between rounded px-3 py-2 text-xs transition lg:flex-none ${
                   pathname.includes("/results")
@@ -102,6 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
                 <span className="text-[10px] text-[var(--cx-accent)]">AI</span>
               </Link>
+
 
 
               <Link
