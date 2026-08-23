@@ -212,8 +212,10 @@ export class PortfolioService {
             verifiedAt: true,
             areaHa: true,
             isCurrent: true,
+            geojson: true,
           },
         },
+
         creditHoldings: {
           orderBy: { createdAt: "desc" as const },
           select: {

@@ -107,9 +107,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   );
 
   const centroid: [number, number] = [data.centroidLng, data.centroidLat];
-  const boundary: GeoJsonFeature | null = data.boundaries[0]
-    ? (data.boundaries[0] as unknown as GeoJsonFeature)
-    : null;
+  const boundary: GeoJsonFeature | null = (data.boundaries[0]?.geojson ??
+    data.boundaries[0] ??
+    null) as unknown as GeoJsonFeature | null;
 
   const firmsPoints: FirmsPoint[] = events.map((ev) => ({
     id: ev.id,

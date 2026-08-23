@@ -72,7 +72,9 @@ const boundarySchema = z.object({
   verifiedAt: dateTime.nullable(),
   areaHa: z.number().nullable(),
   isCurrent: z.boolean(),
+  geojson: z.unknown().optional(),
 });
+
 
 const holdingSchema = z.object({
   id: z.string(),
