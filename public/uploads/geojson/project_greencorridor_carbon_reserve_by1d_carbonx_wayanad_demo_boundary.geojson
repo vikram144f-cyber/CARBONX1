@@ -1,0 +1,56 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "project_name": "Wayanad Green Corridor Demo",
+        "project_type": "Afforestation",
+        "country": "India",
+        "state": "Kerala",
+        "district": "Wayanad",
+        "synthetic": true,
+        "source_note": "Synthetic test polygon generated for CarbonX software testing; not a real project boundary."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              76.132,
+              11.685
+            ],
+            [
+              76.136,
+              11.6855
+            ],
+            [
+              76.138,
+              11.6885
+            ],
+            [
+              76.1355,
+              11.692
+            ],
+            [
+              76.131,
+              11.693
+            ],
+            [
+              76.1285,
+              11.69
+            ],
+            [
+              76.129,
+              11.687
+            ],
+            [
+              76.132,
+              11.685
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

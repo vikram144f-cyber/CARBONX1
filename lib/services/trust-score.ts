@@ -72,8 +72,20 @@ export interface TrustScoreResult {
 }
 
 function hasBoundaryGeometry(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as { type?: unknown; geometry?: unknown; coordinates?: unknown };
+  if (!value) return false;
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return false;
+    }
+  }
+  if (!parsed || typeof parsed !== "object") return false;
+  const candidate = parsed as { type?: unknown; geometry?: unknown; coordinates?: unknown; features?: unknown[] };
+  if (candidate.type === "FeatureCollection" && Array.isArray(candidate.features) && candidate.features.length > 0) {
+    return hasBoundaryGeometry(candidate.features[0]);
+  }
   if (candidate.type === "Feature") return hasBoundaryGeometry(candidate.geometry);
   return (
     (candidate.type === "Polygon" || candidate.type === "MultiPolygon") &&
@@ -81,6 +93,7 @@ function hasBoundaryGeometry(value: unknown): boolean {
     candidate.coordinates.length > 0
   );
 }
+
 
 async function synthesizeWithAI(
   projectName: string,

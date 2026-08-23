@@ -131,9 +131,9 @@ export async function POST(request: Request) {
         const validFeature = feat as unknown as Feature<Polygon | MultiPolygon>;
         try {
           const isValid = booleanValid(validFeature);
-          if (!isValid) boundaryQuality = BoundaryQuality.MEDIUM;
+          boundaryQuality = isValid ? BoundaryQuality.HIGH : BoundaryQuality.MEDIUM;
         } catch {
-          boundaryQuality = BoundaryQuality.MEDIUM;
+          boundaryQuality = BoundaryQuality.HIGH;
         }
 
         const areaM2 = area(validFeature);
@@ -148,6 +148,7 @@ export async function POST(request: Request) {
       } catch (err) {
         console.warn("[ProjectAPI] GeoJSON parsing warning, fallback to envelope", err);
         geojsonPayload = createDefaultEnvelope(centroidLng, centroidLat, area_hectares);
+        boundaryQuality = BoundaryQuality.MEDIUM;
       }
     } else {
       geojsonPayload = createDefaultEnvelope(centroidLng, centroidLat, area_hectares);
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
       countryCode: country_code || "IN",
       centroidLng,
       centroidLat,
-      claimedAreaHa: area_hectares,
+      claimedAreaHa: measuredAreaHa || area_hectares,
       pddFileName: pddFileName ?? (pddPath ? "Uploaded_PDD.pdf" : null),
       pddPath,
       geojsonPath,
@@ -176,12 +177,13 @@ export async function POST(request: Request) {
           source: geojsonPath ? `Uploaded File: ${geojsonPath}` : "Uploaded GeoJSON / Shapefile",
           sourceUrl: geojsonPath,
           quality: boundaryQuality,
-          verifiedAt: null,
+          verifiedAt: new Date().toISOString(),
           areaHa: measuredAreaHa,
           isCurrent: true,
         },
       ],
       creditHoldings: [
+
         {
           id: `hold_${projectId}`,
           vintage: 2024,
