@@ -10,8 +10,8 @@ import {
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-import { env } from "@/lib/env";
-import { prisma } from "@/lib/prisma";
+import { env } from "../env";
+import { prisma } from "../prisma";
 import { environmentalEventProcessor } from "./event-processing";
 import { parseFirmsCsv } from "./firms-csv";
 
@@ -234,7 +234,9 @@ function normalizeHotspot(
 
 function safeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "unknown FIRMS error";
-  return message.replaceAll(env.NASA_FIRMS_MAP_KEY, "[REDACTED]");
+  return env.NASA_FIRMS_MAP_KEY
+    ? message.replaceAll(env.NASA_FIRMS_MAP_KEY, "[REDACTED]")
+    : message;
 }
 
 export class FIRMSIngestionService {
@@ -247,6 +249,14 @@ export class FIRMSIngestionService {
   async ingest(): Promise<IngestionResult> {
     let rejected = 0;
     const attemptedAt = this.clock();
+
+    if (!env.NASA_FIRMS_MAP_KEY) {
+      return {
+        status: "FAILED",
+        reason: "NASA FIRMS integration is not configured",
+        rejected,
+      };
+    }
 
     try {
       const projects = await this.db.carbonProject.findMany({

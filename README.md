@@ -57,26 +57,21 @@ CARBONX deliberately distinguishes what is observed from what is calculated:
 
 ## Run locally
 
-Requirements: Node.js 18+, a PostgreSQL database, and npm.
+Requirements: Node.js 18+, npm, and PostgreSQL. A local PostgreSQL instance is provided through Docker Compose:
 
 ```bash
+docker compose up -d postgres
 npm ci
 copy .env.example .env.local
 npm run prisma:generate
-npm run prisma:validate
+npm run prisma:migrate
+npm run prisma:seed
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+Then open [http://localhost:3000](http://localhost:3000). On macOS/Linux, use `cp .env.example .env.local` instead of `copy`.
 
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `NASA_FIRMS_MAP_KEY`, and `BLOCKCHAIN_CONTRACT_ADDRESS` are validated at startup. Use real local/deployment values in `.env.local`; never commit that file. AI and blockchain network calls are optional at runtime, but the application will preserve the deterministic assessment if either integration is unavailable.
-
-For a persistent local database, apply the checked-in migrations and seed data with:
-
-```bash
-npm run prisma:migrate
-npm run prisma:seed
-```
+Only `DATABASE_URL` and `NEXTAUTH_SECRET` are required to boot the application. NASA FIRMS, AI, Sentinel Hub, and blockchain settings are optional integrations; when absent, the application reports an explicit unavailable state and preserves the deterministic workflow. Never commit `.env.local`.
 
 The in-memory fallback is useful for read-only exploration when database reads fail, but it is not a substitute for PostgreSQL in a deployed environment.
 
@@ -86,13 +81,16 @@ The repository keeps the deterministic service tests lightweight: they do not do
 
 ```bash
 npm test
+npm run test:db
 npm run typecheck
 npm run lint
 npm run prisma:validate
 npm run build
 ```
 
-The test suite covers the geospatial buffer/intersection path, exposure and confidence calculations, incident transitions, AI schema and failure isolation, canonical evidence hashing, 3D fallback state, FIRMS parsing, and trust-score behavior.
+`npm test` is model-free and does not call external services. `npm run test:db` runs the PostgreSQL-backed verification suites for geospatial persistence, incident lifecycle, AI degradation, blockchain anchoring, and audit behavior; it requires a migrated database. GitHub Actions runs both suites against PostgreSQL without repository secrets or model downloads.
+
+The test suite also covers exposure and confidence calculations, 3D fallback state, FIRMS parsing, trust-score behavior, and safe no-credential handling for optional integrations.
 
 ## Project map
 

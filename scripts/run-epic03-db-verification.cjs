@@ -36,7 +36,7 @@ function compileSources() {
       "--module",
       "commonjs",
       "--target",
-      "es2020",
+      "es2022",
       "--outDir",
       outputDirectory,
       "--esModuleInterop",
