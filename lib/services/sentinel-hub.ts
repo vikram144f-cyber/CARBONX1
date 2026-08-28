@@ -4,10 +4,10 @@ export interface SentinelNDVIResult {
   projectId?: string;
   source: "SENTINEL_2_L2A";
   ndviMean: number;
-  ndviMedian: number;
-  ndviMin: number;
-  ndviMax: number;
-  cloudCoveragePct: number;
+  ndviMedian: number | null;
+  ndviMin: number | null;
+  ndviMax: number | null;
+  cloudCoveragePct: number | null;
   canopyHealth: "OPTIMAL" | "MODERATE" | "STRESSED" | "DEGRADED";
   acquiredAt: string;
   resolutionMeters: number;
@@ -75,11 +75,12 @@ export class SentinelHubService {
   async getNDVIForProject(
     projectId: string,
     bbox: [number, number, number, number] = [76.12, 11.68, 76.14, 11.70],
-  ): Promise<SentinelNDVIResult> {
+  ): Promise<SentinelNDVIResult | null> {
     const token = await this.getAccessToken();
 
-    if (token) {
-      try {
+    if (!token) return null;
+
+    try {
         const evalscript = `
           //VERSION=3
           function setup() {
@@ -151,42 +152,29 @@ export class SentinelHubService {
             }>;
           };
 
-          const meanVal =
-            stats.data?.[0]?.outputs?.default?.bands?.B0?.stats?.mean ?? 0.62;
+          const bandStats = stats.data?.[0]?.outputs?.default?.bands?.B0?.stats;
+          const meanVal = bandStats?.mean;
+          if (typeof meanVal !== "number" || !Number.isFinite(meanVal)) return null;
 
           return {
             projectId,
             source: "SENTINEL_2_L2A",
             ndviMean: parseFloat(meanVal.toFixed(3)),
-            ndviMedian: parseFloat((meanVal * 0.98).toFixed(3)),
-            ndviMin: 0.38,
-            ndviMax: 0.84,
-            cloudCoveragePct: 4.2,
+            ndviMedian: null,
+            ndviMin: typeof bandStats?.min === "number" ? bandStats.min : null,
+            ndviMax: typeof bandStats?.max === "number" ? bandStats.max : null,
+            cloudCoveragePct: null,
             canopyHealth: meanVal >= 0.6 ? "OPTIMAL" : meanVal >= 0.45 ? "MODERATE" : "STRESSED",
             acquiredAt: new Date().toISOString(),
             resolutionMeters: 10,
             provider: "Sentinel Hub / ESA Copernicus",
           };
         }
+        console.warn(`[SentinelHub] Statistical query failed with HTTP ${res.status}`);
       } catch (e) {
-        console.warn("[SentinelHub] Statistical query fallback", e);
+        console.warn("[SentinelHub] Statistical query failed", e);
       }
-    }
-
-    // Default validated Sentinel-2 benchmark for registered polygon coordinates
-    return {
-      projectId,
-      source: "SENTINEL_2_L2A",
-      ndviMean: 0.624,
-      ndviMedian: 0.618,
-      ndviMin: 0.412,
-      ndviMax: 0.835,
-      cloudCoveragePct: 3.5,
-      canopyHealth: "OPTIMAL",
-      acquiredAt: new Date().toISOString(),
-      resolutionMeters: 10,
-      provider: "Sentinel Hub / ESA Copernicus",
-    };
+    return null;
   }
 }
 

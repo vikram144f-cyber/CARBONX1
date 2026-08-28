@@ -247,7 +247,7 @@ export default function SubmitProjectPage() {
                   Upload PDD Document
                 </span>
                 <span className="text-xs text-[var(--cx-text-muted)]">
-                  PDF, DOCX — max 50MB
+                  PDF, DOCX, or TXT — max 50MB
                 </span>
               </div>
               {pddFiles.length > 0 && (
@@ -278,7 +278,7 @@ export default function SubmitProjectPage() {
                 ref={geoInputRef}
                 type="file"
                 multiple
-                accept=".geojson,.json,.kml,.tif,.tiff"
+                accept=".geojson,.json"
                 className="hidden"
                 onChange={(e) => void handleGeoAdd(e.target.files)}
               />
@@ -291,7 +291,7 @@ export default function SubmitProjectPage() {
                   Upload Boundary File
                 </span>
                 <span className="text-xs text-[var(--cx-text-muted)]">
-                  GeoJSON, KML, Shapefile
+                  GeoJSON only — WGS84 Feature or FeatureCollection
                 </span>
               </div>
               {geoFiles.length > 0 && (
@@ -323,7 +323,7 @@ export default function SubmitProjectPage() {
 
           {pddFiles.length === 0 && geoFiles.length === 0 && (
             <p className="text-xs text-[var(--cx-warning)] bg-[rgba(237,142,89,0.1)] border border-[rgba(237,142,89,0.25)] rounded-lg px-4 py-2.5 mt-3">
-              No custom files selected — the pipeline will automatically generate a verified reference boundary and registry dataset.
+              No custom files selected — a provisional local envelope will be used for exploration. It is not a registry-verified boundary or credit record.
             </p>
           )}
         </div>

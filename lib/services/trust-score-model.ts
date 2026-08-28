@@ -112,10 +112,6 @@ export function calculateTrustScoreModel(
       : null;
   const anomalies: TrustScoreModelAnomaly[] = [];
 
-  const geoName = (input.geojsonFileName || "").toLowerCase();
-  const isUntitledGeo = geoName.includes("untitled");
-  const isWayanadGeo = geoName.includes("wayanad");
-
   let spatialMultiplier = 1.0;
   let carbonMultiplier = 1.0;
   let envMultiplier = 1.0;
@@ -137,7 +133,7 @@ export function calculateTrustScoreModel(
     ? `Boundary provenance is ${input.boundaryQuality ?? "HIGH"}; measured area is ${measuredAreaHa.toFixed(1)} ha.`
     : "No project boundary is registered.";
 
-  if (input.claimedAreaHa && input.claimedAreaHa > 0 && measuredAreaHa > 0 && !isWayanadGeo) {
+  if (input.claimedAreaHa && input.claimedAreaHa > 0 && measuredAreaHa > 0) {
     const mismatchPct =
       (Math.abs(measuredAreaHa - input.claimedAreaHa) /
         Math.max(measuredAreaHa, input.claimedAreaHa)) *
@@ -160,21 +156,17 @@ export function calculateTrustScoreModel(
     }
   }
 
-  // CRITICAL GATING: If untitled.geojson is uploaded or geometry is missing/unverified
-  if (isUntitledGeo || !input.boundaryPresent || !input.boundaryHasGeometry) {
-    geographicScore = 2.0;
-    geographicReason = isUntitledGeo
-      ? "Boundary geometry in untitled.geojson is unverified/approximate. No spatial ground-truth attribution possible."
-      : "Boundary geometry is missing or unverified. No spatial attribution possible.";
+  // CRITICAL GATING: Missing or unverified geometry cannot support spatial attribution.
+  if (!input.boundaryPresent || !input.boundaryHasGeometry) {
+    geographicScore = 4.0;
+    geographicReason = "Boundary geometry is missing or unverified. No spatial attribution possible.";
     anomalies.push({
       type: "APPROXIMATE_GEOMETRY",
       severity: "CRITICAL",
-      message: isUntitledGeo
-        ? "CRITICAL: Spatial boundary failure. untitled.geojson lacks verified georeferenced polygon coordinates. Carbon claims cannot be verified against physical land mass."
-        : "A complete GIS polygon boundary is missing. Carbon claims cannot be verified against physical land mass.",
+      message: "A complete GIS polygon boundary is missing. Carbon claims cannot be verified against physical land mass.",
     });
 
-    // Severe gating penalty: exactly 28/100 for untitled.geojson / corrupt geometry
+    // Severe gating penalty for missing or unverified geometry.
     spatialMultiplier = 0.32;
     scoreCap = 28.0;
   }
@@ -210,7 +202,7 @@ export function calculateTrustScoreModel(
       carbonScore = Math.min(carbonScore, 20);
     }
   } else {
-    carbonScore = 5.0;
+    carbonScore = 0.0;
     carbonMultiplier = 0.6;
     scoreCap = Math.min(scoreCap, 50);
   }
@@ -218,18 +210,21 @@ export function calculateTrustScoreModel(
   // ==========================================
   // 3. DOCUMENT COMPLETENESS (15 Max)
   // ==========================================
-  let documentsScore = 15.0;
-  const documentParts: string[] = ["registry reference", "methodology", "project description & PDD"];
-  if (hasPendingRegistry(input.registryId)) {
-    documentsScore = 12.0;
-  }
-  const documentsReason = `Stored project documentation includes ${documentParts.join(", ")}.`;
+  const documentParts: string[] = [];
+  if (!hasPendingRegistry(input.registryId)) documentParts.push("registry reference");
+  if (input.methodology?.trim()) documentParts.push("methodology");
+  if (input.description?.trim()) documentParts.push("project description");
+  if (input.hasPddFile || input.pddFileName?.trim()) documentParts.push("PDD file");
+  const documentsScore = round((documentParts.length / 4) * MAX.documents);
+  const documentsReason = documentParts.length > 0
+    ? `Stored project documentation includes ${documentParts.join(", ")}.`
+    : "No project documentation fields are available for verification.";
 
   // ==========================================
   // 4. ENVIRONMENTAL EVIDENCE CONSISTENCY (20 Max)
   // ==========================================
-  let environmentalScore: number = MAX.environmental;
-  let environmentalReason = "No active thermal alerts detected; canopy baseline remains undisturbed.";
+  let environmentalScore = 0.0;
+  let environmentalReason = "No NASA FIRMS event evidence is linked to this project.";
 
   if (input.hasHighRiskIncident) {
     environmentalScore = 0.0;
@@ -249,15 +244,21 @@ export function calculateTrustScoreModel(
     );
     environmentalScore = MAX.environmental * sourceConfidence;
     environmentalReason = `FIRMS monitoring active (${input.environmentalEvidenceCount} observations, ${Math.round(sourceConfidence * 100)}% confidence).`;
+  } else {
+    anomalies.push({
+      type: "MISSING_ENVIRONMENTAL_EVIDENCE",
+      severity: "MEDIUM",
+      message: "No NASA FIRMS event evidence is linked to the project assessment.",
+    });
   }
 
   // ==========================================
   // 5. SENSOR TELEMETRY AVAILABILITY (10 Max)
   // ==========================================
-  const telemetryScore = (input.boundaryHasGeometry && !isUntitledGeo) ? 9.0 : 3.0;
-  const telemetryReason = (input.boundaryHasGeometry && !isUntitledGeo)
-    ? "Sentinel-2 multi-spectral remote sensing telemetry active and calibrated."
-    : "Sentinel-2 telemetry uncalibrated due to missing boundary geometry.";
+  // Sentinel-2 imagery and ground-sensor telemetry are P1 work, not P0 evidence.
+  // Do not award a score for a data source that has not been ingested.
+  const telemetryScore = 0.0;
+  const telemetryReason = "No ground-sensor telemetry is available; this source is not part of the P0 assessment pipeline.";
 
   // ==========================================
   // 6. TEMPORAL CONSISTENCY (10 Max)
@@ -288,24 +289,18 @@ export function calculateTrustScoreModel(
 
   // Multi-modal gating calculation
   let truthScore: number;
-  const pddName = (input.pddFileName || "").toLowerCase();
-  const isWayanadDemoUpload = isWayanadGeo || geoName.includes("wayanad") || pddName.includes("wayanad");
-
-  if (isUntitledGeo || (!input.boundaryPresent && !input.boundaryHasGeometry)) {
+  if (!input.boundaryPresent || !input.boundaryHasGeometry) {
     truthScore = 28.0;
-  } else if (isWayanadDemoUpload) {
-    truthScore = 88.0;
   } else {
     truthScore = round(clamp(rawSum * spatialMultiplier * carbonMultiplier * envMultiplier, 0, scoreCap));
-    if (truthScore > 86 && truthScore < 90) {
-      truthScore = 88.0;
-    }
   }
 
 
   return {
     truthScore,
-    confidence: (input.boundaryHasGeometry && !isUntitledGeo) ? 0.95 : 0.4,
+    confidence: input.boundaryHasGeometry
+      ? input.environmentalEvidenceCount > 0 ? 0.95 : 0.75
+      : 0.4,
     components,
     anomalies,
     measuredAreaHa,
