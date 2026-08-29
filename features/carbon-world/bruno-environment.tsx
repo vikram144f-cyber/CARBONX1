@@ -62,6 +62,12 @@ function prepareScene(scene: THREE.Object3D, renderer: unknown) {
   });
 }
 
+function alignVisualToGround(scene: THREE.Object3D) {
+  scene.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(scene);
+  if (Number.isFinite(bounds.min.y)) scene.position.y -= bounds.min.y;
+}
+
 function createFoliageMaterial(color: THREE.ColorRepresentation, foliageTexture: THREE.Texture) {
   const material = new THREE.MeshStandardMaterial({
     color,
@@ -340,9 +346,14 @@ export function BrunoVehicle({ vehicleRef }: { vehicleRef: MutableRefObject<Grou
     const wheelTemplate = visual.children.find((child) => child.name.toLowerCase().startsWith("wheelcontainer"));
     if (!chassis || !wheelTemplate) {
       prepareScene(visual, gl);
+      alignVisualToGround(visual);
       return visual;
     }
 
+    // The GLB's authored chassis elevation is for Bruno's physics hierarchy.
+    // The CARBONX adapter owns the vehicle root, so keep the wheel/chassis
+    // relationship local before aligning the complete visual to the terrain.
+    chassis.position.set(0, 0, 0);
     wheelTemplate.visible = false;
     const wheelPositions: Array<[number, number, number]> = [
       [0.9, -0.417, 0.75],
@@ -364,6 +375,7 @@ export function BrunoVehicle({ vehicleRef }: { vehicleRef: MutableRefObject<Grou
       return { container, cylinder, baseRotation, front: index < 2, side: index % 2 === 0 ? 1 : -1 };
     });
     prepareScene(visual, gl);
+    alignVisualToGround(visual);
     return visual;
   }, [gl, scene]);
 

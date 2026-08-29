@@ -20,7 +20,9 @@ import { BrunoEnvironment, BrunoVehicle } from "./bruno-environment";
 import { FolioActionInput } from "./folio-controls";
 import { stepRover, type RoverBounds, type RoverState } from "./rover-drive";
 
-const WORLD_BOUNDS: RoverBounds = { minX: -26, maxX: 26, minZ: -26, maxZ: 26 };
+// The terrain asset spans roughly -96..96; keep the vehicle inside its
+// walkable surface while leaving enough room for the model at the edges.
+const WORLD_BOUNDS: RoverBounds = { minX: -92, maxX: 92, minZ: -92, maxZ: 92 };
 
 type WorldSceneProps = {
   state: WorldState;
@@ -288,7 +290,7 @@ function PlayerController({
   const { game, zoneById } = useBrunoRuntime();
   const inputRef = useRef<FolioActionInput | null>(null);
   const roverRef = useRef<THREE.Group | null>(null);
-  const rover = useRef<RoverState>({ position: [0, 0.92, 5], heading: 0, speed: 0, steering: 0 });
+  const rover = useRef<RoverState>({ position: [0, 0, 5], heading: 0, speed: 0, steering: 0 });
   const focusPoint = useRef(new Vector3(0, 1.7, 5));
   const cameraPosition = useRef(new Vector3(-9.5, 6.6, 5));
   const orbitYaw = useRef(0);
@@ -377,7 +379,9 @@ function PlayerController({
     if (roverRef.current) {
       roverRef.current.position.set(...current.position);
       roverRef.current.rotation.y = current.heading;
-      roverRef.current.rotation.z = -current.steering * Math.min(0.12, Math.abs(current.speed) * 0.014);
+      // The adapter has no suspension simulation; keep all four tyres on the
+      // same ground plane instead of rolling the whole car during steering.
+      roverRef.current.rotation.z = 0;
       roverRef.current.userData.speed = current.speed;
       roverRef.current.userData.steering = current.steering;
     }

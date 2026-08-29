@@ -98,4 +98,12 @@ test("folio-style rover controls accelerate, steer, brake, and preserve world bo
   const bounded = stepRover({ ...initial, position: [1.99, 0.34, -1.99], speed: 14 }, { forward: true, backward: false, left: false, right: true, boost: true, brake: false }, 1, bounds);
   assert.ok(bounded.position[0] <= bounds.maxX && bounded.position[0] >= bounds.minX);
   assert.ok(bounded.position[2] <= bounds.maxZ && bounded.position[2] >= bounds.minZ);
+
+  let held = initial;
+  for (let index = 0; index < 1800; index += 1) {
+    held = stepRover(held, { forward: true, backward: false, left: false, right: false, boost: false, brake: false }, 1 / 60, bounds);
+  }
+  assert.ok(held.speed > 0);
+  assert.ok(held.position[0] > bounds.minX && held.position[0] < bounds.maxX);
+  assert.ok(held.position[2] > bounds.minZ && held.position[2] < bounds.maxZ);
 });
