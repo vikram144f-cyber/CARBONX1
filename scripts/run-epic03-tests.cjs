@@ -7,6 +7,16 @@ const root = path.resolve(__dirname, "..");
 const outputDirectory = fs.mkdtempSync(
   path.join(os.tmpdir(), "carbonx-epic03-tests-"),
 );
+const testEnvironment = {
+  ...process.env,
+  DATABASE_URL:
+    process.env.DATABASE_URL ||
+    "postgresql://carbonx:password@localhost:5432/carbonx_test",
+  NEXTAUTH_SECRET:
+    process.env.NEXTAUTH_SECRET || "carbonx-local-test-secret-0123456789",
+  NASA_FIRMS_MAP_KEY: "",
+  NODE_ENV: "test",
+};
 const tscCommand = process.execPath;
 const tscScript = path.join(root, "node_modules", "typescript", "bin", "tsc");
 const sourceFiles = [
@@ -39,8 +49,12 @@ const sourceFiles = [
   "features/carbon-world/bruno-simon-adapter.ts",
   "tests/firms-csv.test.ts",
   "lib/services/firms-csv.ts",
+  "tests/firms-ingestion.test.ts",
+  "lib/services/firms-ingestion.ts",
   "tests/trust-score-model.test.ts",
   "lib/services/trust-score-model.ts",
+  "tests/sentinel-hub.test.ts",
+  "lib/services/sentinel-hub.ts",
 ];
 
 try {
@@ -78,7 +92,9 @@ try {
     path.join(outputDirectory, "tests", "epic-09.test.js"),
     path.join(outputDirectory, "tests", "world-navigation.test.js"),
     path.join(outputDirectory, "tests", "firms-csv.test.js"),
+    path.join(outputDirectory, "tests", "firms-ingestion.test.js"),
     path.join(outputDirectory, "tests", "trust-score-model.test.js"),
+    path.join(outputDirectory, "tests", "sentinel-hub.test.js"),
   ];
   for (const file of testFiles) {
     const test = spawnSync(
@@ -88,7 +104,7 @@ try {
         cwd: root,
         stdio: "inherit",
         env: {
-          ...process.env,
+          ...testEnvironment,
           NODE_PATH: path.join(root, "node_modules"),
         },
       },

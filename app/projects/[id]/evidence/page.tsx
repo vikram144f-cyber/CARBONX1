@@ -19,8 +19,14 @@ interface ProjectData {
   name: string;
   countryCode: string | null;
   registryId: string | null;
-  areaHa: number | null;
-  totalHeldQuantity: number;
+  boundaries: Array<{ areaHa: number | null; quality: string }>;
+  holdingSummary: { heldQuantity: number };
+}
+
+interface TrustScoreData {
+  truth_score: number;
+  decision: string;
+  anomalies: Array<{ type: string }>;
 }
 
 export default function EvidenceExplorerPage({
@@ -29,6 +35,7 @@ export default function EvidenceExplorerPage({
   params: { id: string };
 }) {
   const [project, setProject] = useState<ProjectData | null>(null);
+  const [trustScore, setTrustScore] = useState<TrustScoreData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,10 +46,20 @@ export default function EvidenceExplorerPage({
       })
       .catch((err) => console.error("Failed to load project", err))
       .finally(() => setLoading(false));
+
+    fetch(`/api/projects/${encodeURIComponent(params.id)}/trust-score`)
+      .then((res) => res.json())
+      .then((body) => {
+        if (body.success && body.data) setTrustScore(body.data);
+      })
+      .catch(() => {
+        // The evidence graph remains useful when score calculation is unavailable.
+      });
   }, [params.id]);
 
-  const claimedCarbon = project?.totalHeldQuantity || 10000;
-  const areaHa = project?.areaHa || 100.0;
+  const claimedCarbon = project?.holdingSummary.heldQuantity ?? null;
+  const boundary = project?.boundaries[0] ?? null;
+  const areaHa = boundary?.areaHa ?? null;
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 space-y-8 animate-in fade-in duration-500">
@@ -95,7 +112,7 @@ export default function EvidenceExplorerPage({
                 Registry Claim
               </span>
               <span className="text-xs font-semibold text-[var(--cx-accent)] mt-0.5">
-                {claimedCarbon.toLocaleString()} tCO2e
+                {claimedCarbon === null ? "Inventory unavailable" : `${claimedCarbon.toLocaleString()} tCO2e`}
               </span>
             </div>
             <div className="w-px h-10 bg-[var(--cx-border)]" />
@@ -113,10 +130,10 @@ export default function EvidenceExplorerPage({
               <FileText className="w-6 h-6 text-blue-400 mb-2" />
               <span className="font-bold text-sm text-white">PDD Document</span>
               <span className="text-xs font-semibold text-blue-400 mt-1">
-                {claimedCarbon.toLocaleString()} tCO2e Claim
+                {claimedCarbon === null ? "Stored claim unavailable" : `${claimedCarbon.toLocaleString()} tCO2e claim`}
               </span>
               <span className="text-[10px] text-[var(--cx-text-muted)] mt-1">
-                Confidence: 95%
+                Source: stored project record
               </span>
             </div>
 
@@ -127,24 +144,26 @@ export default function EvidenceExplorerPage({
                 GIS Polygon Boundary
               </span>
               <span className="text-xs font-semibold text-purple-400 mt-1">
-                {areaHa.toLocaleString()} Hectares
+                {areaHa === null ? "Area unavailable" : `${areaHa.toLocaleString()} hectares`}
               </span>
               <span className="text-[10px] text-[var(--cx-text-muted)] mt-1">
-                Topologically Closed (0 self-intersects)
+                Boundary quality: {boundary?.quality ?? "UNKNOWN"}
               </span>
             </div>
 
-            {/* Satellite Sentinel-2 Node */}
+            {/* P0 environmental evidence node */}
             <div className="rounded-xl border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-5 flex flex-col items-center w-52 text-center relative group hover:border-emerald-400 transition shadow-md">
               <Activity className="w-6 h-6 text-emerald-400 mb-2" />
               <span className="font-bold text-sm text-white">
-                Sentinel-2 NDVI
+                NASA FIRMS Evidence
               </span>
               <span className="text-xs font-semibold text-emerald-400 mt-1">
-                Mean NDVI: 0.62
+                {trustScore?.anomalies.some((anomaly) => anomaly.type === "MISSING_ENVIRONMENTAL_EVIDENCE")
+                  ? "No linked event"
+                  : "Linked when available"}
               </span>
               <span className="text-[10px] text-[var(--cx-text-muted)] mt-1">
-                Healthy Forest Canopy
+                Thermal point detections · ESTIMATED buffer
               </span>
             </div>
           </div>
@@ -166,7 +185,7 @@ export default function EvidenceExplorerPage({
                 </span>
               </div>
               <span className="text-xs font-semibold text-[var(--cx-success)]">
-                All Evidence Modes Consistent
+                {trustScore ? `Decision: ${trustScore.decision}` : "Assessment pending"}
               </span>
             </div>
 
@@ -174,11 +193,11 @@ export default function EvidenceExplorerPage({
             <div className="rounded-xl border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] p-6 flex flex-col items-center w-64 text-center shadow-xl">
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-4 border-[rgba(114,176,132,0.3)] bg-[var(--cx-surface)] shadow-inner mb-3">
                 <span className="cx-mono text-3xl font-bold text-white">
-                  100
+                  {trustScore ? trustScore.truth_score.toFixed(0) : "—"}
                 </span>
               </div>
               <span className="cx-mono text-xs font-bold uppercase tracking-widest text-[var(--cx-success)]">
-                STATUS: VERIFIED
+                STATUS: {trustScore?.decision ?? "PENDING"}
               </span>
             </div>
           </div>

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2, ArrowRight, Activity, Leaf } from "@/components/icons";
+import { CheckCircle2, Loader2, Activity } from "@/components/icons";
 
 interface PipelineEvent {
   stage: string;
@@ -13,211 +12,252 @@ interface PipelineEvent {
 }
 
 const STAGES = [
-  { id: "DOCUMENT_ANALYSIS", label: "Document Analysis & PDD Extraction" },
-  { id: "GIS_ANALYSIS", label: "GIS Boundary Topological Validation" },
-  { id: "SATELLITE_ANALYSIS", label: "Sentinel-2 Multi-Spectral NDVI Analysis" },
-  { id: "EVIDENCE_RECONCILIATION", label: "Multi-Modal Evidence Reconciliation" },
-  { id: "TRUTH_SCORING", label: "Algorithmic Truth Scoring & Anomaly Detection" },
-  { id: "REPORT_GENERATION", label: "Google Gemini 2.5 Multi-Modal Synthesis & Report Compilation" },
-  { id: "COMPLETE", label: "Verification Complete" },
-
+  { id: "PROJECT_RECORD", label: "Project record loaded" },
+  { id: "GIS_ANALYSIS", label: "Registered GIS boundary inspected" },
+  { id: "INVENTORY_RECONCILIATION", label: "CreditHolding inventory reconciled" },
+  { id: "FIRMS_ANALYSIS", label: "NASA FIRMS evidence linkage checked" },
+  { id: "TRUTH_SCORING", label: "Deterministic trust score calculated" },
+  { id: "INTERPRETATION", label: "Narrative interpretation resolved" },
+  { id: "COMPLETE", label: "Verification record ready" },
 ];
+
+type ProjectEnvelope = {
+  success?: boolean;
+  data?: {
+    name?: string;
+    boundaries?: Array<{ areaHa?: number | null }>;
+    holdingSummary?: { heldQuantity?: number };
+  };
+};
+
+type TrustScoreEnvelope = {
+  success?: boolean;
+  data?: {
+    truth_score: number;
+    decision: string;
+    anomalies: Array<{ type: string }>;
+    model_version: string;
+    gemini_report?: { ai_summary?: string };
+  };
+};
 
 export default function LiveVerificationPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const router = useRouter();
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
-  const [progress, setProgress] = useState(15);
-  const [projectName, setProjectName] = useState<string>(params.id);
-  const [projectArea, setProjectArea] = useState<number>(100);
-  const [claimedCarbon, setClaimedCarbon] = useState<number>(10000);
-  const navigatedRef = useRef(false);
+  const [progress, setProgress] = useState(0);
+  const [projectName, setProjectName] = useState(params.id);
+  const [projectArea, setProjectArea] = useState<number | null>(null);
+  const [claimedCarbon, setClaimedCarbon] = useState<number | null>(null);
+  const [score, setScore] = useState<TrustScoreEnvelope["data"] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [complete, setComplete] = useState(false);
 
-  const addEvent = useCallback(
-    (stage: string, prog: number, message: string) => {
-      const time = new Date().toLocaleTimeString();
-      setEvents((prev) => [{ stage, progress: prog, message, time }, ...prev]);
-      setProgress(prog);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetch(`/api/projects/${encodeURIComponent(params.id)}`)
-      .then((res) => res.json())
-      .then((envelope) => {
-        const p = envelope?.data ?? envelope;
-        if (p?.name) setProjectName(p.name);
-        if (p?.boundaries?.[0]?.areaHa) setProjectArea(p.boundaries[0].areaHa);
-        if (p?.creditHoldings?.[0]?.heldQuantity) setClaimedCarbon(p.creditHoldings[0].heldQuantity);
-      })
-      .catch(() => {});
-  }, [params.id]);
+  const addEvent = useCallback((stage: string, prog: number, message: string, index: number) => {
+    setEvents((previous) => [
+      { stage, progress: prog, message, time: new Date().toLocaleTimeString() },
+      ...previous,
+    ]);
+    setCurrentStageIndex(index);
+    setProgress(prog);
+  }, []);
 
   useEffect(() => {
-    let currentIdx = 0;
-    const stageTimeline = [
-      {
-        stage: "DOCUMENT_ANALYSIS",
-        progress: 20,
-        message: `Parsed PDD document for ${projectName}: validated carbon methodology and ${claimedCarbon.toLocaleString()} tCO2e claim.`,
-      },
-      {
-        stage: "GIS_ANALYSIS",
-        progress: 40,
-        message: `Validated ${projectArea.toFixed(1)} ha boundary polygon: 0 topological self-intersections detected.`,
-      },
-      {
-        stage: "SATELLITE_ANALYSIS",
-        progress: 60,
-        message: "Sentinel-2 NDVI multi-spectral imagery mean: 0.62 (Healthy Forest Canopy).",
-      },
-      {
-        stage: "EVIDENCE_RECONCILIATION",
-        progress: 80,
-        message: `Cross-modal consistency verified: ${(claimedCarbon / (projectArea || 1)).toFixed(1)} tCO2e/ha biomass density.`,
-      },
-      {
-        stage: "TRUTH_SCORING",
-        progress: 92,
-        message: "Multi-modal Truth Score calculated · Decision category: VERIFIED.",
-      },
-      {
-        stage: "REPORT_GENERATION",
-        progress: 98,
-        message: "Synthesized NVIDIA NIM (Llama 3.3 70B Instruct) executive verification dossier.",
-      },
-      {
-        stage: "COMPLETE",
-        progress: 100,
-        message: "Verification complete. Redirecting to final results…",
-      },
-    ];
+    let cancelled = false;
 
-    const timer = setInterval(() => {
-      if (currentIdx < stageTimeline.length) {
-        const item = stageTimeline[currentIdx];
-        addEvent(item.stage, item.progress, item.message);
-        setCurrentStageIndex(currentIdx);
-        currentIdx++;
-      } else {
-        clearInterval(timer);
-        if (!navigatedRef.current) {
-          navigatedRef.current = true;
-          setTimeout(() => {
-            router.push(`/projects/${params.id}/results`);
-          }, 1200);
+    async function runVerification() {
+      setError(null);
+      setComplete(false);
+      setProgress(5);
+      try {
+        const projectResponse = await fetch(
+          `/api/projects/${encodeURIComponent(params.id)}`,
+          { cache: "no-store" },
+        );
+        const projectBody = (await projectResponse.json()) as ProjectEnvelope;
+        if (!projectResponse.ok || projectBody.success !== true || !projectBody.data) {
+          throw new Error("Project record could not be loaded");
         }
-      }
-    }, 1200);
 
-    return () => clearInterval(timer);
-  }, [params.id, addEvent, router, projectName, projectArea, claimedCarbon]);
+        if (cancelled) return;
+        const project = projectBody.data;
+        const area = project.boundaries?.[0]?.areaHa ?? null;
+        const inventory = project.holdingSummary?.heldQuantity ?? null;
+        setProjectName(project.name ?? params.id);
+        setProjectArea(area);
+        setClaimedCarbon(inventory);
+        addEvent("PROJECT_RECORD", 22, `Loaded project record for ${project.name ?? params.id}.`, 0);
+        addEvent(
+          "GIS_ANALYSIS",
+          42,
+          area === null
+            ? "No measured boundary area is available in the project record."
+            : `Read the current boundary record (${area.toFixed(1)} ha).`,
+          1,
+        );
+        addEvent(
+          "INVENTORY_RECONCILIATION",
+          58,
+          inventory === null
+            ? "No held credit inventory is available for comparison."
+            : `Read ${inventory.toLocaleString()} held credits from the project record.`,
+          2,
+        );
+
+        const scoreResponse = await fetch(
+          `/api/projects/${encodeURIComponent(params.id)}/trust-score`,
+          { cache: "no-store" },
+        );
+        const scoreBody = (await scoreResponse.json()) as TrustScoreEnvelope;
+        if (!scoreResponse.ok || scoreBody.success !== true || !scoreBody.data) {
+          throw new Error("Deterministic trust score could not be calculated");
+        }
+
+        if (cancelled) return;
+        const result = scoreBody.data;
+        setScore(result);
+        addEvent(
+          "FIRMS_ANALYSIS",
+          72,
+          result.anomalies.some((anomaly) => anomaly.type === "MISSING_ENVIRONMENTAL_EVIDENCE")
+            ? "No NASA FIRMS event is linked; the absence is recorded as missing evidence."
+            : "NASA FIRMS event linkage was included in the deterministic assessment.",
+          3,
+        );
+        addEvent(
+          "TRUTH_SCORING",
+          88,
+          `Calculated Trust Score ${result.truth_score.toFixed(1)}/100 · Decision: ${result.decision}.`,
+          4,
+        );
+        addEvent(
+          "INTERPRETATION",
+          96,
+          result.model_version.startsWith("deterministic-trust")
+            ? "AI interpretation unavailable; deterministic assessment remains available."
+            : `Narrative interpretation available from ${result.model_version}.`,
+          5,
+        );
+        addEvent("COMPLETE", 100, "Verification record ready for review.", 6);
+        setComplete(true);
+      } catch (verificationError) {
+        if (cancelled) return;
+        setError(
+          verificationError instanceof Error
+            ? verificationError.message
+            : "Verification could not be completed",
+        );
+      }
+    }
+
+    void runVerification();
+    return () => {
+      cancelled = true;
+    };
+  }, [addEvent, params.id]);
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Left Side: Pipeline Stage Progress */}
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <div className="space-y-6">
           <div>
-            <div className="flex items-center gap-2 text-[var(--cx-accent)] text-xs font-bold uppercase tracking-wider mb-1">
-              <Activity className="w-4 h-4" /> Live Execution Stream
+            <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--cx-accent)]">
+              <Activity className="h-4 w-4" /> Evidence-backed verification
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white">
-              Verification Engine
+              Verification Review
             </h1>
-            <p className="text-[var(--cx-text-muted)] mt-1 font-mono text-xs">
+            <p className="mt-1 font-mono text-xs text-[var(--cx-text-muted)]">
               Project: {projectName} ({params.id})
             </p>
           </div>
 
-          <div className="rounded-xl border border-[var(--cx-border)] bg-[var(--cx-surface)] p-6 space-y-5 shadow-xl">
-            {/* Progress Bar */}
+          <div className="space-y-5 rounded-xl border border-[var(--cx-border)] bg-[var(--cx-surface)] p-6 shadow-xl">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs cx-mono">
-                <span className="text-[var(--cx-text-secondary)] uppercase">
-                  Progress
-                </span>
-                <span className="font-bold text-[var(--cx-accent)]">
-                  {progress}%
-                </span>
+                <span className="uppercase text-[var(--cx-text-secondary)]">Progress</span>
+                <span className="font-bold text-[var(--cx-accent)]">{progress}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cx-surface-inset)]">
                 <div
-                  className="h-full bg-[var(--cx-accent)] transition-all duration-500 rounded-full"
+                  className="h-full rounded-full bg-[var(--cx-accent)] transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
 
-            {/* Stages Step List */}
             <div className="space-y-4 pt-2">
-              {STAGES.map((s, idx) => {
-                const isCompleted = idx < currentStageIndex;
-                const isCurrent = idx === currentStageIndex;
+              {STAGES.map((stage, index) => {
+                const isCompleted = complete || index < currentStageIndex;
+                const isCurrent = !complete && index === currentStageIndex;
                 return (
-                  <div key={s.id} className="flex items-center gap-3 text-xs">
+                  <div key={stage.id} className="flex items-center gap-3 text-xs">
                     {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-[var(--cx-success)] flex-shrink-0" />
+                      <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[var(--cx-success)]" />
                     ) : isCurrent ? (
-                      <Loader2 className="w-5 h-5 text-[var(--cx-accent)] flex-shrink-0 animate-spin" />
+                      <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-[var(--cx-accent)]" />
                     ) : (
-                      <div className="w-5 h-5 rounded-full border border-[var(--cx-border)] bg-[var(--cx-surface-inset)] flex-shrink-0" />
+                      <div className="h-5 w-5 flex-shrink-0 rounded-full border border-[var(--cx-border)] bg-[var(--cx-surface-inset)]" />
                     )}
-                    <span
-                      className={`cx-mono ${
-                        isCompleted
-                          ? "text-white font-medium line-through opacity-70"
-                          : isCurrent
-                            ? "text-[var(--cx-accent)] font-bold"
-                            : "text-[var(--cx-text-muted)]"
-                      }`}
-                    >
-                      {s.label}
+                    <span className={`cx-mono ${isCompleted ? "font-medium text-white" : isCurrent ? "font-bold text-[var(--cx-accent)]" : "text-[var(--cx-text-muted)]"}`}>
+                      {stage.label}
                     </span>
                   </div>
                 );
               })}
             </div>
+
+            {error ? (
+              <div className="rounded border border-[var(--cx-critical)]/40 bg-[var(--cx-critical)]/10 p-3 text-xs text-[var(--cx-critical)]">
+                {error}. No synthetic verification result was created.
+              </div>
+            ) : null}
+
+            {complete && score ? (
+              <div className="flex items-center justify-between border-t border-[var(--cx-border-subtle)] pt-4 text-xs">
+                <span className="cx-mono text-[var(--cx-text-muted)]">
+                  {projectArea === null ? "Area unavailable" : `${projectArea.toFixed(1)} ha`} · {claimedCarbon === null ? "Inventory unavailable" : `${claimedCarbon.toLocaleString()} credits`}
+                </span>
+                <Link
+                  href={`/projects/${encodeURIComponent(params.id)}/results`}
+                  className="cx-mono rounded border border-[rgba(237,142,89,0.35)] bg-[rgba(237,142,89,0.12)] px-3 py-2 font-bold uppercase tracking-wider text-[var(--cx-accent)] transition hover:bg-[rgba(237,142,89,0.22)]"
+                >
+                  Review results →
+                </Link>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* Right Side: Live Terminal Log */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--cx-text-muted)]">
-              Real-Time Pipeline Execution Log
+              Verification event log
             </h2>
-            <span className="cx-mono text-[10px] text-[var(--cx-success)] flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--cx-success)] animate-pulse" />
-              LIVE TELEMETRY
+            <span className="cx-mono flex items-center gap-1.5 text-[10px] text-[var(--cx-success)]">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--cx-success)]" />
+              API-BACKED
             </span>
           </div>
 
-          <div className="h-[460px] overflow-y-auto rounded-xl border border-[var(--cx-border)] bg-[#0c0a1a] p-4 space-y-2.5 font-mono text-xs shadow-inner">
+          <div className="h-[460px] overflow-y-auto rounded-xl border border-[var(--cx-border)] bg-[#0c0a1a] p-4 font-mono text-xs shadow-inner">
             {events.length === 0 ? (
-              <p className="text-[var(--cx-text-muted)]">Initializing verification daemon…</p>
+              <p className="text-[var(--cx-text-muted)]">Loading project evidence…</p>
             ) : (
-              events.map((ev, i) => (
-                <div
-                  key={i}
-                  className="rounded border border-[var(--cx-border-subtle)] bg-[rgba(255,255,255,0.02)] p-2.5 space-y-1"
-                >
-                  <div className="flex items-center justify-between text-[10px] text-[var(--cx-text-muted)]">
-                    <span className="text-[var(--cx-accent)] font-bold">
-                      [{ev.stage}]
-                    </span>
-                    <span>{ev.time}</span>
+              <div className="space-y-2.5">
+                {events.map((event, index) => (
+                  <div key={`${event.stage}-${index}`} className="space-y-1 rounded border border-[var(--cx-border-subtle)] bg-[rgba(255,255,255,0.02)] p-2.5">
+                    <div className="flex items-center justify-between text-[10px] text-[var(--cx-text-muted)]">
+                      <span className="font-bold text-[var(--cx-accent)]">[{event.stage}]</span>
+                      <span>{event.time}</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-[var(--cx-text-secondary)]">{event.message}</p>
                   </div>
-                  <p className="text-[var(--cx-text-secondary)] text-[11px] leading-relaxed">
-                    {ev.message}
-                  </p>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>

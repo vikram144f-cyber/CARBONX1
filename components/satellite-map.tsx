@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * SatelliteMap — Advanced Multi-Spectral Satellite & Geospatial Intelligence Studio
+ * SatelliteMap — Geospatial project and environmental evidence map
  *
  * Base Layer Options:
- * 1. Google High-Resolution Satellite (Global 15cm-1m resolution)
+ * 1. Google satellite context tiles
  * 2. Esri World Imagery
- * 3. Sentinel Hub WMS (Sentinel-2 L2A Multi-Spectral)
+ * 3. Google hybrid context tiles
  * 4. CartoDB Dark Spatial Telemetry
  * 5. OpenTopo Physical Relief
  */
@@ -98,9 +98,9 @@ const TILE_CONFIG: Record<
     maxZoom: 19,
   },
   sentinel: {
-    name: "Sentinel Hub / Sentinel-2 L2A",
+    name: "Satellite context (not analysis)",
     url: "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-    attribution: "&copy; ESA Copernicus, Sentinel Hub, Sentinel-2 L2A Multi-Spectral",
+    attribution: "&copy; Google satellite imagery",
     maxZoom: 19,
   },
   dark: {

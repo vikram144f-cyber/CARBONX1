@@ -258,11 +258,11 @@ export function PortfolioDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-4 text-[10px] cx-mono text-[#8fa8ff]">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="w-3 h-3 text-[#48d7ae]" /> GEMINI 2.5 CONNECTED</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-3 h-3 text-[#48d7ae]" /> AI INTERPRETATION OPTIONAL</span>
             <span className="hidden sm:inline text-[var(--cx-border)]">|</span>
-            <span className="hidden sm:inline">SENTINEL-2 NDVI ACTIVE</span>
+            <span className="hidden sm:inline">NASA FIRMS MONITORING READY</span>
             <span className="hidden sm:inline text-[var(--cx-border)]">|</span>
-            <span className="hidden sm:inline">NASA FIRMS LIVE</span>
+            <span className="hidden sm:inline">NASA FIRMS SOURCE</span>
           </div>
         </div>
 
@@ -275,7 +275,7 @@ export function PortfolioDashboard() {
               Global Carbon Asset Command
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-6 text-[#aebbe1] sm:text-[15px]">
-              Deterministic AI truth scoring, real-time NASA FIRMS wildfire alerts, and Sentinel-2 multi-spectral NDVI reconciliation across global credit portfolios.
+              Deterministic trust scoring, NASA FIRMS thermal-alert ingestion, and GIS boundary reconciliation across global credit portfolios.
             </p>
           </div>
           <div className="flex flex-wrap gap-2.5">
@@ -305,7 +305,7 @@ export function PortfolioDashboard() {
                   Multi-Modal Truth Verification
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-[#aab7df]">
-                  Reconciles GIS polygons, Sentinel-2 canopy health, and NASA FIRMS thermal telemetry with deterministic carbon density mathematics.
+                  Reconciles GIS polygons, NASA FIRMS thermal detections, and deterministic carbon-density calculations.
                 </p>
               </div>
               <div className="grid max-w-2xl gap-3 sm:grid-cols-3">

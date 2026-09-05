@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: carbonx
+          POSTGRES_USER: carbonx
+          POSTGRES_PASSWORD: carbonx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U carbonx -d carbonx"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://carbonx:carbonx@localhost:5432/carbonx
+      NEXTAUTH_SECRET: carbonx-ci-test-secret-01234567890123456789
+      NODE_ENV: test
+      FIRMS_POINT_BUFFER_KM: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply database migrations
+        run: npm run prisma:migrate:deploy
+
+      - name: Seed deterministic demo data
+        run: npm run prisma:seed
+
+      - name: Run unit and service tests
+        run: npm test
+
+      - name: Run PostgreSQL verification suites
+        run: npm run test:db
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Validate Prisma schema
+        run: npm run prisma:validate
+
+      - name: Build production bundle
+        run: npm run build

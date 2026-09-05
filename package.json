@@ -12,7 +12,9 @@
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed",
+    "test:db": "node scripts/run-db-verification.cjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

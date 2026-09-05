@@ -2,6 +2,7 @@ import "server-only";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { area, centroid } from "@turf/turf";
 import booleanValid from "@turf/boolean-valid";
 import type { Feature, Polygon, MultiPolygon } from "geojson";
@@ -10,13 +11,29 @@ import { prisma } from "@/lib/prisma";
 import { errorResponse, successResponse } from "@/lib/api-response";
 import { BoundaryQuality, HoldingStatus } from "@prisma/client";
 import { saveProject, StoredProject } from "@/lib/services/project-store";
+import { InvalidInputError } from "@/lib/services/errors";
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const PDD_EXTENSIONS = new Set([".pdf", ".docx", ".txt"]);
+const GEOJSON_EXTENSIONS = new Set([".geojson", ".json"]);
 
 function formatId(name: string): string {
   const clean = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
-  return `project_${clean}_${Date.now().toString(36).slice(-4)}`;
+  return `project_${clean || "carbon-reserve"}_${randomUUID().slice(0, 8)}`;
+}
+
+function validateUpload(file: File, label: string, allowedExtensions: Set<string>): void {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new InvalidInputError(`${label} exceeds the 50 MB upload limit`);
+  }
+
+  const extension = path.extname(file.name).toLowerCase();
+  if (!allowedExtensions.has(extension)) {
+    throw new InvalidInputError(`${label} must use one of: ${Array.from(allowedExtensions).join(", ")}`);
+  }
 }
 
 export async function POST(request: Request) {
@@ -46,11 +63,19 @@ export async function POST(request: Request) {
       if (typeof rawGeo === "string" && rawGeo.trim().startsWith("{")) {
         try {
           boundary_geojson = JSON.parse(rawGeo);
-        } catch {}
+        } catch {
+          throw new InvalidInputError("Boundary payload must contain valid GeoJSON");
+        }
       }
 
-      pddFile = (formData.get("pdd_file") as File) || null;
-      geoFile = (formData.get("geojson_file") as File) || null;
+      const rawPdd = formData.get("pdd_file");
+      const rawGeoFile = formData.get("geojson_file");
+      pddFile = rawPdd && typeof rawPdd === "object" && "arrayBuffer" in rawPdd
+        ? (rawPdd as File)
+        : null;
+      geoFile = rawGeoFile && typeof rawGeoFile === "object" && "arrayBuffer" in rawGeoFile
+        ? (rawGeoFile as File)
+        : null;
     } else {
       const raw = await request.json();
       name = raw.name || name;
@@ -63,6 +88,21 @@ export async function POST(request: Request) {
     }
 
     const projectId = formatId(name);
+
+    if (!name.trim() || name.trim().length > 160) {
+      throw new InvalidInputError("Project name must contain 1–160 characters");
+    }
+    if (!Number.isFinite(area_hectares) || area_hectares <= 0) {
+      throw new InvalidInputError("Claimed area must be a positive number");
+    }
+    if (!Number.isFinite(claimed_tco2e) || claimed_tco2e < 0) {
+      throw new InvalidInputError("Claimed carbon must be a non-negative number");
+    }
+    if (description.length > 4000) {
+      throw new InvalidInputError("Project description is too long");
+    }
+    if (pddFile && pddFile.size > 0) validateUpload(pddFile, "PDD file", PDD_EXTENSIONS);
+    if (geoFile && geoFile.size > 0) validateUpload(geoFile, "Boundary file", GEOJSON_EXTENSIONS);
 
     // 1. Save uploaded physical files to public/uploads/
     let pddPath: string | null = null;
@@ -91,15 +131,16 @@ export async function POST(request: Request) {
       const cleanGeoName = `${projectId}_${geoFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
       const geoFilePath = path.join(uploadsGeoDir, cleanGeoName);
       const text = await geoFile.text();
-      await fs.writeFile(geoFilePath, text, "utf8");
-      geojsonPath = `/uploads/geojson/${cleanGeoName}`;
-      console.log(`[ProjectAPI] Saved uploaded GeoJSON boundary to ${geoFilePath}`);
-
       if (!boundary_geojson) {
         try {
           boundary_geojson = JSON.parse(text);
-        } catch {}
+        } catch {
+          throw new InvalidInputError("Boundary file must contain valid GeoJSON");
+        }
       }
+      await fs.writeFile(geoFilePath, text, "utf8");
+      geojsonPath = `/uploads/geojson/${cleanGeoName}`;
+      console.log(`[ProjectAPI] Saved uploaded GeoJSON boundary to ${geoFilePath}`);
     }
 
     // 2. Process GeoJSON Boundary & Calculate Exact Real Area with Turf.js
@@ -160,7 +201,7 @@ export async function POST(request: Request) {
       id: projectId,
       name,
       description: description || `Uploaded ${project_type} carbon intelligence asset`,
-      registryId: `VCS-${Math.floor(1000 + Math.random() * 9000)}`,
+      registryId: null,
       methodology: project_type === "CONSERVATION" ? "VM0007" : "AR-ACM0003",
       countryCode: country_code || "IN",
       centroidLng,
@@ -174,10 +215,10 @@ export async function POST(request: Request) {
           id: `b_${projectId}`,
           version: 1,
           geojson: geojsonPayload,
-          source: geojsonPath ? `Uploaded File: ${geojsonPath}` : "Uploaded GeoJSON / Shapefile",
+          source: geojsonPath ? `Uploaded File: ${geojsonPath}` : "Uploaded GeoJSON",
           sourceUrl: geojsonPath,
           quality: boundaryQuality,
-          verifiedAt: new Date().toISOString(),
+          verifiedAt: null,
           areaHa: measuredAreaHa,
           isCurrent: true,
         },
@@ -187,7 +228,7 @@ export async function POST(request: Request) {
         {
           id: `hold_${projectId}`,
           vintage: 2024,
-          registrySerialRef: `SERIAL-${projectId}-2024`,
+          registrySerialRef: null,
           issuedQuantity: claimed_tco2e,
           heldQuantity: claimed_tco2e,
           status: "ACTIVE",
@@ -239,7 +280,7 @@ export async function POST(request: Request) {
             projectId: p.id,
             version: 1,
             geojson: geojsonPayload as unknown as import("@prisma/client").Prisma.InputJsonValue,
-            source: geojsonPath ? `Uploaded File: ${geojsonPath}` : "Uploaded GeoJSON / Shapefile",
+            source: geojsonPath ? `Uploaded File: ${geojsonPath}` : "Uploaded GeoJSON",
             sourceUrl: geojsonPath,
             quality: boundaryQuality,
             areaHa: measuredAreaHa,
@@ -252,7 +293,7 @@ export async function POST(request: Request) {
           data: {
             projectId: p.id,
             vintage: 2024,
-            registrySerialRef: `SERIAL-${p.id}-2024`,
+            registrySerialRef: null,
             issuedQuantity: claimed_tco2e,
             heldQuantity: claimed_tco2e,
             status: HoldingStatus.ACTIVE,
@@ -281,6 +322,9 @@ export async function POST(request: Request) {
       201,
     );
   } catch (error) {
+    if (error instanceof InvalidInputError) {
+      return errorResponse(error.code, error.message, error.status);
+    }
     console.error("[ProjectAPI] Failed to process project submission", error);
     return errorResponse(
       "INTERNAL_ERROR",

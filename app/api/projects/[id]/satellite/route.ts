@@ -46,6 +46,14 @@ export async function GET(
       bbox,
     );
 
+    if (!result) {
+      return errorResponse(
+        "SATELLITE_UNAVAILABLE",
+        "Sentinel-2 imagery is not configured or could not be retrieved. P0 scoring uses GIS and NASA FIRMS evidence instead.",
+        503,
+      );
+    }
+
     return successResponse(result);
   } catch (error) {
     console.error("[SatelliteAPI] NDVI retrieval error", error);

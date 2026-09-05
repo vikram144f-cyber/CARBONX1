@@ -92,3 +92,26 @@ test("FIRMS confidence contributes only when linked evidence exists", () => {
   );
   assert.ok(withEvent.confidence > withoutEvent.confidence);
 });
+
+test("documentation and telemetry components reflect only available evidence", () => {
+  const result = calculateTrustScoreModel(
+    input({
+      registryId: null,
+      methodology: null,
+      description: null,
+      hasPddFile: false,
+      pddFileName: null,
+    }),
+  );
+
+  const documents = result.components.find(
+    (item) => item.component_name === "DOCUMENT_COMPLETENESS",
+  );
+  const telemetry = result.components.find(
+    (item) => item.component_name === "SENSOR_CONSISTENCY",
+  );
+
+  assert.equal(documents?.weighted_score, 0);
+  assert.equal(telemetry?.weighted_score, 0);
+  assert.match(telemetry?.reason ?? "", /not part of the P0/i);
+});

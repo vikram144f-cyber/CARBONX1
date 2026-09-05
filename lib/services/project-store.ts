@@ -25,7 +25,7 @@ export interface StoredProject {
   creditHoldings: Array<{
     id: string;
     vintage: number;
-    registrySerialRef: string;
+    registrySerialRef: string | null;
     issuedQuantity: number;
     heldQuantity: number;
     status: string;
@@ -315,9 +315,9 @@ export function getFallbackProject(projectId: string): StoredProject {
     map[projectId] ?? {
       id: projectId,
       name: projectId.replace(/^project_/, "").replace(/_/g, " ").toUpperCase(),
-      description: "Verified carbon intelligence asset",
-      registryId: "VCS-PENDING",
-      methodology: "AR-ACM0003",
+      description: "Project record pending registry and evidence verification.",
+      registryId: null,
+      methodology: null,
       countryCode: "IN",
       centroidLng: 76.132,
       centroidLat: 11.685,
@@ -338,7 +338,7 @@ export function getFallbackProject(projectId: string): StoredProject {
         {
           id: `hold_${projectId}`,
           vintage: 2024,
-          registrySerialRef: `SERIAL-${projectId}-2024`,
+          registrySerialRef: null,
           issuedQuantity: 10000,
           heldQuantity: 10000,
           status: "ACTIVE",

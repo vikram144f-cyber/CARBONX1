@@ -339,22 +339,22 @@ export class TrustScoreService {
 
     const defaultSummary =
       decision === "VERIFIED"
-        ? `Comprehensive multi-modal evaluation demonstrates high evidence consistency across registered GIS boundaries (${measuredAreaHa.toFixed(1)} ha), calculated biomass density (${(model.biomassDensity ?? 0).toFixed(1)} tCO2e/ha), and satellite observations for ${project.name}. Overall Trust Score is ${truthScore.toFixed(1)}/100.`
-        : `Multi-modal evaluation detected ${anomalies.length} anomaly/discrepancies. Attention is required regarding ${anomalies.map((a) => a.type.toLowerCase().replace(/_/g, " ")).join(", ")}. Human audit is recommended.`;
+        ? `Deterministic evaluation found consistent registered GIS boundary and inventory inputs for ${project.name} (${measuredAreaHa.toFixed(1)} ha, ${(model.biomassDensity ?? 0).toFixed(1)} tCO2e/ha). NASA FIRMS event evidence is considered only when linked; Sentinel-2 imagery is not part of this P0 score. Overall Trust Score is ${truthScore.toFixed(1)}/100.`
+        : `Deterministic evaluation detected ${anomalies.length} evidence issue${anomalies.length === 1 ? "" : "s"}. Attention is required regarding ${anomalies.map((a) => a.type.toLowerCase().replace(/_/g, " ")).join(", ")}. Human audit is recommended.`;
 
     const baseEvidence: EvidenceNode[] = [
       {
         id: `ev-doc-${projectId}`,
-        source_type: "DOCUMENT",
-        source_name: project.pddFileName ?? `${project.name} Project Design Document (PDD)`,
+        source_type: project.pddPath ? "DOCUMENT" : "TABULAR",
+        source_name: project.pddFileName ?? `${project.name} stored project claim`,
         metric: "CLAIMED_CARBON",
         value: totalCredits,
         unit: "tCO2e",
-        confidence: 0.95,
+        confidence: project.pddPath ? 0.95 : 0.5,
         provenance: {
-          registry: project.registryId ?? "VCS",
-          filePath: project.pddPath ?? "/uploads/pdd/sample_pdd.pdf",
-          extraction: aiResult?.model ?? "google/gemini-1.5-flash",
+          registry: project.registryId ?? "unavailable",
+          filePath: project.pddPath ?? "unavailable",
+          extraction: aiResult?.model ?? "deterministic-record-mapping",
         },
       },
       {
@@ -364,10 +364,10 @@ export class TrustScoreService {
         metric: "CALCULATED_AREA",
         value: measuredAreaHa,
         unit: "hectares",
-        confidence: 0.98,
+        confidence: boundary?.quality === "HIGH" ? 0.98 : boundary ? 0.6 : 0,
         provenance: {
-          source: boundary?.source ?? "Uploaded GeoJSON",
-          filePath: project.geojsonPath ?? "/uploads/geojson/boundary.geojson",
+          source: boundary?.source ?? "Stored boundary record",
+          filePath: project.geojsonPath ?? "unavailable",
           quality: boundary?.quality ?? "MEDIUM",
         },
       },
